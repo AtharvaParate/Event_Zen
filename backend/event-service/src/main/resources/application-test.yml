@@ -1,0 +1,12 @@
+spring:
+  data:
+    mongodb:
+      host: localhost
+      port: 27017
+      database: eventzen_test
+      auto-index-creation: true
+
+logging:
+  level:
+    root: INFO
+    com.eventzen: DEBUG
