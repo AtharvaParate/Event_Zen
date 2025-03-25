@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: eventzen-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=admin123
+    networks:
+      - eventzen-network
+
+  event-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eventzen-event-service
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATA_MONGODB_HOST=mongodb
+      - SPRING_DATA_MONGODB_PORT=27017
+      - SPRING_DATA_MONGODB_DATABASE=eventzen
+      - SPRING_DATA_MONGODB_USERNAME=admin
+      - SPRING_DATA_MONGODB_PASSWORD=admin123
+    depends_on:
+      - mongodb
+    networks:
+      - eventzen-network
+
+volumes:
+  mongodb_data:
+
+networks:
+  eventzen-network:
+    driver: bridge 

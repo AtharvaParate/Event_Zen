@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - REACT_APP_API_URL=http://localhost:8080
+    depends_on:
+      - api-gateway
+
+  api-gateway:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - EVENT_SERVICE_URL=http://event-service:8081
+      - ATTENDEE_SERVICE_URL=http://attendee-service:8082
+      - BUDGET_SERVICE_URL=http://budget-service:8083
+    depends_on:
+      - auth-service
+      - event-service
+      - attendee-service
+      - budget-service
+
+  auth-service:
+    build:
+      context: ./backend/auth-service
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - JWT_SECRET=your_jwt_secret_key
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/eventzen_auth
+    depends_on:
+      - db
+
+  event-service:
+    build:
+      context: ./backend/event-service
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/eventzen_events
+    depends_on:
+      - db
+
+  attendee-service:
+    build:
+      context: ./backend/attendee-service
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8082"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/eventzen_attendees
+    depends_on:
+      - db
+
+  budget-service:
+    build:
+      context: ./backend/budget-service
+      dockerfile: Dockerfile
+    ports:
+      - "8083:8083"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/eventzen_budget
+    depends_on:
+      - db
+
+  db:
+    image: postgres:14-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=eventzen
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data: 

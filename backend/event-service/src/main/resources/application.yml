@@ -1,0 +1,46 @@
+spring:
+  application:
+    name: event-service
+  datasource:
+    url: jdbc:postgresql://db:5432/eventzen_events
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  data:
+    mongodb:
+      host: localhost
+      port: 27017
+      database: eventzen
+      auto-index-creation: true
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+jwt:
+  secret: your-secret-key-here
+  expiration: 86400000 # 24 hours in milliseconds
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+    tagsSorter: alpha
+
+logging:
+  level:
+    root: INFO
+    com.eventzen: DEBUG
+    org.springframework.security: INFO
+    org.springframework.data.mongodb: INFO
