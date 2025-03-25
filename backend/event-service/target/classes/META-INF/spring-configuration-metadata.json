@@ -1,0 +1,24 @@
+{
+  "groups": [
+    {
+      "name": "spring.security.jwt",
+      "type": "com.eventzen.config.JwtProperties",
+      "sourceType": "com.eventzen.config.JwtProperties"
+    }
+  ],
+  "properties": [
+    {
+      "name": "spring.security.jwt.secret",
+      "type": "java.lang.String",
+      "description": "Secret key for JWT signing",
+      "sourceType": "com.eventzen.config.JwtProperties"
+    },
+    {
+      "name": "spring.security.jwt.expiration",
+      "type": "java.lang.Long",
+      "description": "Expiration time in milliseconds for JWT tokens",
+      "sourceType": "com.eventzen.config.JwtProperties"
+    }
+  ],
+  "hints": []
+}

@@ -1,109 +1,112 @@
 # EventZen - Event Management System
 
-EventZen is a comprehensive event management system designed to streamline event planning operations, improve efficiency, and enhance customer experience.
-
-## Project Overview
-
-EventZen is a full-stack web application built with:
-
-- Frontend: React.js
-- Backend: Spring Boot & Node.js (Microservices Architecture)
-- Database: PostgreSQL
-- Authentication: JWT
-- Containerization: Docker
+EventZen is a comprehensive event management platform designed to streamline the process of organizing, managing, and attending events.
 
 ## Features
 
-### 1. User Management Module
-
-- User registration and authentication
-- JWT-based secure login
-- User profile management
-- Role-based access control
-
-### 2. Event Management Module
-
-- Event creation and scheduling
-- Venue booking management
-- Vendor coordination
-- Event status tracking
-- Event analytics
-
-### 3. Attendee Management Module
-
-- Attendee registration
-- Guest list management
-- Automated email notifications
-- Attendance tracking
-- Feedback collection
-
-### 4. Budget Management Module
-
-- Budget planning and tracking
-- Expense management
-- Financial reporting
-- Invoice generation
-- Payment tracking
+- User authentication with JWT
+- Event creation and management
+- Vendor management for events
+- Role-based authorization (Admin, Organizer, Attendee)
+- RESTful API with Spring Boot
+- MongoDB for data persistence
+- Frontend with React.js
+- Docker containerization
 
 ## Project Structure
 
+The project follows a microservices architecture with the following components:
+
 ```
-eventzen/
-├── frontend/                 # React frontend application
+EventZen/
 ├── backend/
-│   ├── auth-service/        # Authentication microservice (Node.js)
-│   ├── event-service/       # Event management microservice (Spring Boot)
-│   ├── attendee-service/    # Attendee management microservice (Spring Boot)
-│   └── budget-service/      # Budget management microservice (Spring Boot)
-├── docker/                  # Docker configuration files
-└── docs/                    # Project documentation
+│   ├── event-service/      # Spring Boot service for event management
+│   ├── auth-service/       # Node.js service for authentication
+│   ├── attendee-service/   # Service for attendee management
+│   └── budget-service/     # Service for budget management
+├── frontend/              # React frontend application
+├── docker/                # Docker configuration files
+└── docs/                 # Project documentation
 ```
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js (v14 or higher)
 - Java 17
+- Node.js 18+
 - Docker and Docker Compose
-- PostgreSQL
+- MongoDB
 
-### Installation
+### Running with Docker
 
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/eventzen.git
-cd eventzen
+git clone https://github.com/yourusername/EventZen.git
+cd EventZen
 ```
 
-2. Start the application using Docker Compose:
+2. Build and run using Docker Compose:
 
 ```bash
-docker-compose up -d
+docker-compose up --build
 ```
 
-3. Access the application:
+3. Access the application at:
+   - Frontend: http://localhost:3000
+   - API Documentation: http://localhost:8080/api/swagger-ui.html
 
-- Frontend: http://localhost:3000
-- API Gateway: http://localhost:8080
+### Development Setup
 
-## Documentation
+To set up the development environment:
 
-Detailed documentation including:
+1. Event Service (Spring Boot):
 
-- API Endpoints
-- Database Schema
-- User Flow Diagrams
-- Wireframe Designs
-- ER Diagrams
+```bash
+cd backend/event-service
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
+```
 
-can be found in the `docs/` directory.
+2. Auth Service (Node.js):
 
-## Contributing
+```bash
+cd backend/auth-service
+npm install
+npm run dev
+```
 
-Please read CONTRIBUTING.md for details on our code of conduct and the process for submitting pull requests.
+3. Frontend (React):
+
+```bash
+cd frontend
+npm install
+npm start
+```
+
+## API Documentation
+
+API documentation is available via Swagger UI at:
+
+- http://localhost:8080/api/swagger-ui.html
+
+## Authentication
+
+The application uses JWT-based authentication. See the [Authentication Documentation](docs/authentication/README.md) for details.
 
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Documentation
+
+Additional documentation can be found in the `docs` directory:
+
+- [Authentication](docs/authentication/README.md)
+- [Event API](docs/event-api/README.md)
+- [Vendor API](docs/vendor-api/README.md)
+- [Deployment Guide](docs/deployment/README.md)
+
+## Contributing
+
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.

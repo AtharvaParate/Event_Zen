@@ -2,8 +2,10 @@ package com.eventzen.config;
 
 import com.eventzen.model.Event;
 import com.eventzen.model.Vendor;
+import com.eventzen.model.User;
 import com.eventzen.repository.EventRepository;
 import com.eventzen.repository.VendorRepository;
+import com.eventzen.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,6 +13,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -28,6 +31,8 @@ public class DataInitializer {
 
     private final EventRepository eventRepository;
     private final VendorRepository vendorRepository;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     /**
      * Initialize sample data
@@ -149,5 +154,29 @@ public class DataInitializer {
         musicFestival.setUpdatedAt(now);
 
         return Arrays.asList(corporateConference, wedding, musicFestival);
+    }
+
+    @Bean
+    @Profile({ "dev", "default" })
+    public CommandLineRunner initializeAdminUser() {
+        return args -> {
+            if (userRepository.count() == 0) {
+                logger.info("No users found, creating admin user");
+
+                User adminUser = User.builder()
+                        .firstName("Admin")
+                        .lastName("User")
+                        .email("admin@eventzen.com")
+                        .password(passwordEncoder.encode("admin123"))
+                        .role(User.UserRole.ADMIN)
+                        .active(true)
+                        .build();
+
+                userRepository.save(adminUser);
+
+                logger.info("Admin user created with email: admin@eventzen.com and password: admin123");
+                logger.warn("Please change the admin password after first login!");
+            }
+        };
     }
 }
