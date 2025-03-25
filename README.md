@@ -94,6 +94,43 @@ API documentation is available via Swagger UI at:
 
 The application uses JWT-based authentication. See the [Authentication Documentation](docs/authentication/README.md) for details.
 
+## Troubleshooting Common Issues
+
+### Material-UI Animation Issues
+
+If you encounter errors related to Material-UI animations (e.g., `getBoundingClientRect()`), the application includes fixes for these issues:
+
+1. The global patches in `src/utils/muiFixes.js` address common animation issues
+2. For development, StrictMode is disabled to prevent animation errors
+3. All transitions are disabled in development mode for stability
+
+### Missing Index.html
+
+If you encounter a "Could not find a required file: index.html" error:
+
+1. Make sure `public/index.html` exists
+2. Ensure you're starting the app from the project root with `npm start`
+3. Delete `node_modules` and reinstall with `npm install` if needed
+
+### Image Loading Issues
+
+If images fail to load:
+
+1. Make sure the public/images directory structure exists
+2. Check that fallback images are available in public/images/defaults
+3. Use the error handling provided by the CardMedia component
+
+## Deployment Checklist
+
+Before deploying to production, ensure you complete the following:
+
+1. Run `npm run build` to create an optimized production build
+2. Test the production build locally with a static server
+3. Configure environment variables for production
+4. Set up proper CORS configuration in backend services
+5. Enable React StrictMode in production for better error detection
+6. Set up proper error monitoring and logging
+
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.

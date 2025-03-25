@@ -3,7 +3,6 @@ import { Link as RouterLink } from "react-router-dom";
 import {
   Box,
   Button,
-  Container,
   Grid,
   Typography,
   Card,
@@ -44,7 +43,7 @@ const features = [
 
 const HomePage = () => {
   return (
-    <Box>
+    <Box sx={{ width: "100%", overflow: "hidden" }}>
       {/* Hero Section */}
       <Box
         sx={{
@@ -52,10 +51,16 @@ const HomePage = () => {
           color: "primary.contrastText",
           py: 8,
           mb: 6,
+          width: "100%",
         }}
       >
-        <Container maxWidth="lg">
-          <Grid container spacing={4} alignItems="center">
+        <Box sx={{ px: { xs: 2, sm: 4 }, maxWidth: "1600px", mx: "auto" }}>
+          <Grid
+            container
+            spacing={4}
+            alignItems="center"
+            justifyContent="center"
+          >
             <Grid item xs={12} md={6}>
               <Typography variant="h2" component="h1" gutterBottom>
                 Simplify Your Event Planning
@@ -85,24 +90,30 @@ const HomePage = () => {
                 </Button>
               </Stack>
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} md={6} sx={{ textAlign: "center" }}>
               <Box
                 component="img"
-                src="/images/hero-event.svg"
+                src={`${process.env.PUBLIC_URL}/images/hero-event.svg`}
                 alt="Event Planning"
                 sx={{
                   width: "100%",
                   height: "auto",
+                  maxHeight: "400px",
                   display: { xs: "none", md: "block" },
+                }}
+                onError={(e) => {
+                  console.log("Hero image load error, using fallback");
+                  e.target.onerror = null; // Prevent infinite loop
+                  e.target.src = `${process.env.PUBLIC_URL}/images/defaults/event-default.avif`;
                 }}
               />
             </Grid>
           </Grid>
-        </Container>
+        </Box>
       </Box>
 
       {/* Features Section */}
-      <Container maxWidth="lg" sx={{ mb: 8 }}>
+      <Box sx={{ px: { xs: 2, sm: 4 }, maxWidth: "1600px", mx: "auto", mb: 8 }}>
         <Typography
           variant="h3"
           component="h2"
@@ -155,7 +166,7 @@ const HomePage = () => {
             </Grid>
           ))}
         </Grid>
-      </Container>
+      </Box>
 
       {/* CTA Section */}
       <Box
@@ -166,9 +177,10 @@ const HomePage = () => {
           borderBottom: 1,
           borderColor: "divider",
           mb: 6,
+          width: "100%",
         }}
       >
-        <Container maxWidth="md">
+        <Box sx={{ px: { xs: 2, sm: 4 }, maxWidth: "1000px", mx: "auto" }}>
           <Typography variant="h3" component="h2" align="center" gutterBottom>
             Ready to Host Your Event?
           </Typography>
@@ -194,11 +206,11 @@ const HomePage = () => {
               Get Started Today
             </Button>
           </Box>
-        </Container>
+        </Box>
       </Box>
 
       {/* Featured Events */}
-      <Container maxWidth="lg" sx={{ mb: 8 }}>
+      <Box sx={{ px: { xs: 2, sm: 4 }, maxWidth: "1600px", mx: "auto", mb: 8 }}>
         <Typography
           variant="h3"
           component="h2"
@@ -222,8 +234,15 @@ const HomePage = () => {
                 <CardMedia
                   component="img"
                   height="200"
-                  image={`/images/event-${item}.jpg`}
+                  image={`${process.env.PUBLIC_URL}/images/events/event-${item}.avif`}
                   alt={`Event ${item}`}
+                  onError={(e) => {
+                    console.log(
+                      `Featured event-${item}.avif image load error, using default fallback`
+                    );
+                    e.target.onerror = null; // Prevent infinite loop
+                    e.target.src = `${process.env.PUBLIC_URL}/images/defaults/event-default.avif`;
+                  }}
                 />
                 <CardContent sx={{ flexGrow: 1 }}>
                   <Typography gutterBottom variant="h5" component="h3">
@@ -253,11 +272,12 @@ const HomePage = () => {
             to="/events"
             variant="outlined"
             color="primary"
+            size="large"
           >
             View All Events
           </Button>
         </Box>
-      </Container>
+      </Box>
     </Box>
   );
 };

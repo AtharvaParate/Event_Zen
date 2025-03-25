@@ -202,6 +202,7 @@ const Sidebar = ({ mobileOpen, onDrawerToggle }) => {
             "& .MuiDrawer-paper": {
               boxSizing: "border-box",
               width: drawerWidth,
+              zIndex: (theme) => theme.zIndex.appBar - 1,
             },
           }}
         >
@@ -217,8 +218,10 @@ const Sidebar = ({ mobileOpen, onDrawerToggle }) => {
           "& .MuiDrawer-paper": {
             boxSizing: "border-box",
             width: drawerWidth,
-            position: "relative",
             height: "100vh",
+            position: "fixed",
+            borderRight: (theme) => `1px solid ${theme.palette.divider}`,
+            zIndex: (theme) => theme.zIndex.appBar - 1,
           },
         }}
         open

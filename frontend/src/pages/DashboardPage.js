@@ -6,7 +6,6 @@ import {
   Button,
   Card,
   CardContent,
-  Container,
   Grid,
   Tab,
   Tabs,
@@ -18,6 +17,13 @@ import {
   ListItemSecondaryAction,
   IconButton,
   Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  CardMedia,
+  Slide,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -25,9 +31,15 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import EventIcon from "@mui/icons-material/Event";
 import PeopleIcon from "@mui/icons-material/People";
-import { fetchEvents } from "../store/eventSlice";
+import { fetchEvents, deleteEvent, fetchUserEvents } from "../store/eventSlice";
 import PageHeader from "../components/common/PageHeader";
 import Loading from "../components/common/Loading";
+import { getImageUrl, getFallbackImage } from "../utils/imageUtils";
+
+// Custom transition component to prevent scrollTop errors
+const Transition = React.forwardRef(function Transition(props, ref) {
+  return <Slide direction="up" ref={ref} {...props} />;
+});
 
 // Custom TabPanel component
 function TabPanel(props) {
@@ -50,26 +62,17 @@ const DashboardPage = () => {
   const [tabValue, setTabValue] = useState(0);
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
-  const { events, loading } = useSelector((state) => state.events);
-
-  // Mock data for attending events - in a real app, this would come from API
-  const [attendingEvents] = useState([
-    {
-      id: "mock1",
-      title: "Tech Conference 2025",
-      date: "2025-06-15",
-      location: "San Francisco, CA",
-    },
-    {
-      id: "mock2",
-      title: "Music Festival",
-      date: "2025-07-20",
-      location: "Austin, TX",
-    },
-  ]);
+  const { events, attendingEvents, loading } = useSelector(
+    (state) => state.events
+  );
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState(null);
 
   useEffect(() => {
     dispatch(fetchEvents({ userId: user?.id }));
+    if (user?.id) {
+      dispatch(fetchUserEvents(user.id));
+    }
   }, [dispatch, user]);
 
   const handleTabChange = (event, newValue) => {
@@ -77,8 +80,39 @@ const DashboardPage = () => {
   };
 
   const handleDeleteEvent = (eventId) => {
-    // This would dispatch a delete event action
-    console.log("Delete event:", eventId);
+    setEventToDelete(eventId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    try {
+      await dispatch(deleteEvent(eventToDelete)).unwrap();
+      setDeleteDialogOpen(false);
+      setEventToDelete(null);
+    } catch (error) {
+      console.error("Failed to delete event:", error);
+      setDeleteDialogOpen(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setEventToDelete(null);
+  };
+
+  const formatDate = (dateString) => {
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+
+      return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    } catch (error) {
+      return dateString;
+    }
   };
 
   // Stats cards data
@@ -91,7 +125,7 @@ const DashboardPage = () => {
     },
     {
       title: "Attending",
-      value: attendingEvents.length,
+      value: attendingEvents?.length || 0,
       icon: <PeopleIcon sx={{ fontSize: 40, color: "secondary.main" }} />,
       color: "secondary.light",
     },
@@ -102,7 +136,16 @@ const DashboardPage = () => {
   }
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 8 }}>
+    <Box
+      sx={{
+        width: "100%",
+        px: { xs: 2, sm: 4 },
+        maxWidth: "1600px",
+        mx: "auto",
+        mt: 4,
+        mb: 8,
+      }}
+    >
       <PageHeader
         title={`Welcome, ${user?.firstName || "User"}!`}
         subtitle="Manage your events and profile"
@@ -164,24 +207,26 @@ const DashboardPage = () => {
                   <ListItem>
                     <ListItemText
                       primary={event.title}
-                      secondary={`${new Date(
-                        event.startDate
-                      ).toLocaleDateString()} | ${event.location}`}
+                      secondary={`${formatDate(event.startDate)} | ${
+                        event.location
+                      }`}
                     />
                     <ListItemSecondaryAction>
                       <IconButton
                         edge="end"
+                        aria-label="view"
                         component={RouterLink}
                         to={`/events/${event.id}`}
-                        aria-label="view"
+                        sx={{ mr: 1 }}
                       >
                         <VisibilityIcon />
                       </IconButton>
                       <IconButton
                         edge="end"
+                        aria-label="edit"
                         component={RouterLink}
                         to={`/events/edit/${event.id}`}
-                        aria-label="edit"
+                        sx={{ mr: 1 }}
                       >
                         <EditIcon />
                       </IconButton>
@@ -194,7 +239,7 @@ const DashboardPage = () => {
                       </IconButton>
                     </ListItemSecondaryAction>
                   </ListItem>
-                  {index < events.length - 1 && <Divider />}
+                  {index < events.length - 1 && <Divider component="li" />}
                 </React.Fragment>
               ))}
             </List>
@@ -206,9 +251,9 @@ const DashboardPage = () => {
               <Button
                 variant="contained"
                 color="primary"
-                startIcon={<AddIcon />}
                 component={RouterLink}
                 to="/events/create"
+                startIcon={<AddIcon />}
               >
                 Create Your First Event
               </Button>
@@ -218,32 +263,68 @@ const DashboardPage = () => {
 
         {/* Attending Tab */}
         <TabPanel value={tabValue} index={1}>
-          {attendingEvents.length > 0 ? (
-            <List>
-              {attendingEvents.map((event, index) => (
-                <React.Fragment key={event.id}>
-                  <ListItem>
-                    <ListItemText
-                      primary={event.title}
-                      secondary={`${new Date(
-                        event.date
-                      ).toLocaleDateString()} | ${event.location}`}
+          {attendingEvents && attendingEvents.length > 0 ? (
+            <Grid container spacing={4}>
+              {attendingEvents.map((event) => (
+                <Grid item xs={12} sm={6} md={4} key={event.id}>
+                  <Card
+                    sx={{
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                    }}
+                  >
+                    <CardMedia
+                      component="img"
+                      height="160"
+                      image={`${process.env.PUBLIC_URL}/images/events/${event.image}`}
+                      alt={event.title}
+                      onError={(e) => {
+                        console.log(
+                          "Attending event image load error, using fallback"
+                        );
+                        e.target.onerror = null; // Prevent infinite loop
+                        e.target.src = `${process.env.PUBLIC_URL}/images/defaults/event-default.avif`;
+                      }}
                     />
-                    <ListItemSecondaryAction>
-                      <IconButton
-                        edge="end"
+                    <CardContent sx={{ flexGrow: 1 }}>
+                      <Typography variant="h6" component="h3" gutterBottom>
+                        {event.title}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        gutterBottom
+                      >
+                        <strong>Date:</strong> {formatDate(event.startDate)}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        gutterBottom
+                      >
+                        <strong>Location:</strong> {event.location}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        paragraph
+                      >
+                        <strong>Organizer:</strong> {event.organizer.name}
+                      </Typography>
+                      <Button
+                        variant="outlined"
+                        fullWidth
                         component={RouterLink}
                         to={`/events/${event.id}`}
-                        aria-label="view"
                       >
-                        <VisibilityIcon />
-                      </IconButton>
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                  {index < attendingEvents.length - 1 && <Divider />}
-                </React.Fragment>
+                        View Details
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </Grid>
               ))}
-            </List>
+            </Grid>
           ) : (
             <Box sx={{ p: 3, textAlign: "center" }}>
               <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
@@ -281,7 +362,7 @@ const DashboardPage = () => {
                     color="primary"
                     sx={{ mt: 2 }}
                     component={RouterLink}
-                    to="/profile/edit"
+                    to="/profile"
                   >
                     Edit Profile
                   </Button>
@@ -292,24 +373,23 @@ const DashboardPage = () => {
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
-                    Account Settings
+                    Security Settings
+                  </Typography>
+                  <Typography variant="body2" paragraph>
+                    Manage your account security settings and password
                   </Typography>
                   <Button
                     variant="outlined"
                     color="primary"
-                    sx={{ mr: 2, mb: { xs: 2, sm: 0 } }}
                     component={RouterLink}
-                    to="/profile/change-password"
+                    to="/profile"
+                    sx={{ mt: 1 }}
+                    onClick={() => {
+                      // This will take the user to the Security tab on the profile page
+                      localStorage.setItem("profileTabIndex", "1");
+                    }}
                   >
-                    Change Password
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    color="error"
-                    component={RouterLink}
-                    to="/profile/delete-account"
-                  >
-                    Delete Account
+                    Manage Security
                   </Button>
                 </CardContent>
               </Card>
@@ -317,7 +397,33 @@ const DashboardPage = () => {
           </Grid>
         </TabPanel>
       </Paper>
-    </Container>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+        TransitionComponent={Transition}
+        disableScrollLock
+      >
+        <DialogTitle id="alert-dialog-title">
+          {"Delete this event?"}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            Are you sure you want to delete this event? This action cannot be
+            undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel}>Cancel</Button>
+          <Button onClick={handleDeleteConfirm} color="error" autoFocus>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 };
 

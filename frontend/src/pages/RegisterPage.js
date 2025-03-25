@@ -4,7 +4,6 @@ import { Link as RouterLink, useNavigate } from "react-router-dom";
 import {
   Box,
   Button,
-  Container,
   TextField,
   Typography,
   Link,
@@ -130,7 +129,16 @@ const RegisterPage = () => {
   }
 
   return (
-    <Container component="main" maxWidth="sm" sx={{ mt: 8, mb: 8 }}>
+    <Box
+      sx={{
+        width: "100%",
+        px: { xs: 2, sm: 4 },
+        maxWidth: "600px",
+        mx: "auto",
+        mt: 8,
+        mb: 8,
+      }}
+    >
       <Paper elevation={3} sx={{ p: { xs: 3, md: 5 }, borderRadius: 2 }}>
         <Box
           sx={{
@@ -345,7 +353,7 @@ const RegisterPage = () => {
           </Box>
         </Box>
       </Paper>
-    </Container>
+    </Box>
   );
 };
 

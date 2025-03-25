@@ -25,6 +25,8 @@ import {
 import { logout } from "../../store/authSlice";
 import { toggleDarkMode } from "../../store/uiSlice";
 
+const drawerWidth = 240;
+
 const Header = ({ onDrawerToggle }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -55,7 +57,16 @@ const Header = ({ onDrawerToggle }) => {
   };
 
   return (
-    <AppBar position="sticky" elevation={1} color="default">
+    <AppBar
+      position="fixed"
+      elevation={1}
+      color="default"
+      sx={{
+        width: { xs: "100%", md: `calc(100% - ${drawerWidth}px)` },
+        ml: { xs: 0, md: `${drawerWidth}px` },
+        zIndex: (theme) => theme.zIndex.drawer + 1,
+      }}
+    >
       <Toolbar>
         {isMobile && (
           <IconButton

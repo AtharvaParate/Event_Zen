@@ -76,6 +76,27 @@ export const checkAuth = createAsyncThunk(
   }
 );
 
+export const updateUserProfile = createAsyncThunk(
+  "auth/updateUserProfile",
+  async (userData, { dispatch, rejectWithValue }) => {
+    try {
+      // In a real app, this would make an API call to update the user
+      // For our mock app, we'll just return the userData directly
+      dispatch(
+        setAlert({
+          type: "success",
+          message: "Profile updated successfully",
+        })
+      );
+      return userData;
+    } catch (error) {
+      const message = error.response?.data?.message || "Profile update failed";
+      dispatch(setAlert({ type: "error", message }));
+      return rejectWithValue(message);
+    }
+  }
+);
+
 // Slice
 const initialState = {
   user: null,
@@ -90,6 +111,10 @@ const authSlice = createSlice({
   reducers: {
     clearErrors: (state) => {
       state.error = null;
+    },
+    // Add a simple action for direct profile updates
+    updateProfile: (state, action) => {
+      state.user = { ...state.user, ...action.payload };
     },
   },
   extraReducers: (builder) => {
@@ -122,6 +147,20 @@ const authSlice = createSlice({
         state.error = action.payload;
       })
 
+      // Update profile
+      .addCase(updateUserProfile.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateUserProfile.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload;
+      })
+      .addCase(updateUserProfile.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
       // Logout
       .addCase(logout.fulfilled, (state) => {
         state.isAuthenticated = false;
@@ -136,5 +175,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { clearErrors } = authSlice.actions;
+export const { clearErrors, updateProfile } = authSlice.actions;
 export default authSlice.reducer;

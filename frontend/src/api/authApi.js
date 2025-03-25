@@ -1,5 +1,3 @@
-import axios from "./axiosConfig";
-
 // Mock data for demo purposes
 const mockUsers = [
   {

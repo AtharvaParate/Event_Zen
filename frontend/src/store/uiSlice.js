@@ -1,9 +1,22 @@
 import { createSlice } from "@reduxjs/toolkit";
 
+// Helper function to get stored dark mode preference safely
+const getInitialDarkMode = () => {
+  try {
+    const storedDarkMode = localStorage.getItem("darkMode");
+    // Check specifically for 'true' string since localStorage stores strings
+    return storedDarkMode === 'true';
+  } catch (e) {
+    // In case of any localStorage errors
+    console.warn('Error accessing localStorage for darkMode:', e);
+    return false;
+  }
+};
+
 const initialState = {
   alert: null,
   drawer: false,
-  darkMode: false,
+  darkMode: getInitialDarkMode(),
 };
 
 const uiSlice = createSlice({
@@ -21,11 +34,19 @@ const uiSlice = createSlice({
     },
     toggleDarkMode: (state) => {
       state.darkMode = !state.darkMode;
-      localStorage.setItem("darkMode", state.darkMode);
+      try {
+        localStorage.setItem("darkMode", state.darkMode.toString());
+      } catch (e) {
+        console.warn('Error saving darkMode to localStorage:', e);
+      }
     },
     setDarkMode: (state, action) => {
       state.darkMode = action.payload;
-      localStorage.setItem("darkMode", state.darkMode);
+      try {
+        localStorage.setItem("darkMode", state.darkMode.toString());
+      } catch (e) {
+        console.warn('Error saving darkMode to localStorage:', e);
+      }
     },
   },
 });

@@ -16,6 +16,20 @@ export const fetchEvents = createAsyncThunk(
   }
 );
 
+export const fetchUserEvents = createAsyncThunk(
+  "events/fetchUserEvents",
+  async (userId, { dispatch, rejectWithValue }) => {
+    try {
+      return await eventApi.getEvents({ userId });
+    } catch (error) {
+      const message =
+        error.response?.data?.message || "Failed to fetch user events";
+      dispatch(setAlert({ type: "error", message }));
+      return rejectWithValue(message);
+    }
+  }
+);
+
 export const fetchEvent = createAsyncThunk(
   "events/fetchEvent",
   async (id, { dispatch, rejectWithValue }) => {
@@ -85,6 +99,7 @@ export const deleteEvent = createAsyncThunk(
 const initialState = {
   events: [],
   event: null,
+  attendingEvents: [],
   loading: false,
   error: null,
   pagination: {
@@ -126,6 +141,20 @@ const eventSlice = createSlice({
         state.error = action.payload;
       })
 
+      // Fetch User Events
+      .addCase(fetchUserEvents.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchUserEvents.fulfilled, (state, action) => {
+        state.loading = false;
+        state.attendingEvents = action.payload.content;
+      })
+      .addCase(fetchUserEvents.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
       // Fetch Single Event
       .addCase(fetchEvent.pending, (state) => {
         state.loading = true;
@@ -147,7 +176,7 @@ const eventSlice = createSlice({
       })
       .addCase(createEvent.fulfilled, (state, action) => {
         state.loading = false;
-        state.events.unshift(action.payload);
+        state.events = [action.payload, ...state.events];
       })
       .addCase(createEvent.rejected, (state, action) => {
         state.loading = false;
