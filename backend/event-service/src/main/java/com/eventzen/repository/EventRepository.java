@@ -17,7 +17,7 @@ public interface EventRepository extends MongoRepository<Event, String> {
 
     Page<Event> findByTitleContainingIgnoreCase(String title, Pageable pageable);
 
-    List<Event> findByVenue(String venue);
+    List<Event> findByLocationContainingIgnoreCase(String location);
 
     List<Event> findByCategory(String category);
 

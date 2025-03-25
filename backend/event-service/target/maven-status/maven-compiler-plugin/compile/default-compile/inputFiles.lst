@@ -22,7 +22,6 @@
 /Users/atharva/Downloads/Event_Zen/backend/event-service/src/main/java/com/eventzen/service/impl/VendorServiceImpl.java
 /Users/atharva/Downloads/Event_Zen/backend/event-service/src/main/java/com/eventzen/controller/VendorController.java
 /Users/atharva/Downloads/Event_Zen/backend/event-service/src/main/java/com/eventzen/config/JwtProperties.java
-/Users/atharva/Downloads/Event_Zen/backend/event-service/src/main/java/com/eventzen/EventServiceApplication.java
 /Users/atharva/Downloads/Event_Zen/backend/event-service/src/main/java/com/eventzen/security/JwtAuthenticationFilter.java
 /Users/atharva/Downloads/Event_Zen/backend/event-service/src/main/java/com/eventzen/repository/EventRepository.java
 /Users/atharva/Downloads/Event_Zen/backend/event-service/src/main/java/com/eventzen/EventZenApplication.java

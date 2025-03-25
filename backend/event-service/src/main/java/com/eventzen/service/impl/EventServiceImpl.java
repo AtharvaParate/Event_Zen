@@ -113,8 +113,8 @@ public class EventServiceImpl implements EventService {
     @Override
     @Transactional(readOnly = true)
     public List<Event> getEventsByVenue(String venue) {
-        logger.debug("Getting events at venue: {}", venue);
-        return eventRepository.findByVenue(venue);
+        logger.debug("Getting events at location: {}", venue);
+        return eventRepository.findByLocationContainingIgnoreCase(venue);
     }
 
     @Override

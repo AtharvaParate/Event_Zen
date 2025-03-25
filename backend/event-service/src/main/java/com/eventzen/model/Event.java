@@ -10,6 +10,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Data
@@ -31,6 +32,8 @@ public class Event {
     private String organizerId;
     private List<String> vendorIds;
     private List<String> attendeeIds;
+    @Builder.Default
+    private List<String> tags = new ArrayList<>();
     private EventStatus status;
     @CreatedDate
     private LocalDateTime createdAt;

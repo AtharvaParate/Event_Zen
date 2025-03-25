@@ -32,7 +32,6 @@ com/eventzen/config/WebConfig.class
 com/eventzen/service/impl/VendorServiceImpl.class
 com/eventzen/controller/AuthController$AuthResponse.class
 com/eventzen/security/JwtService.class
-com/eventzen/EventServiceApplication.class
 com/eventzen/model/User.class
 com/eventzen/service/impl/EventServiceImpl.class
 com/eventzen/service/UserService.class
