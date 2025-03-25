@@ -8,20 +8,21 @@ import { useSelector, useDispatch } from "react-redux";
 import MainLayout from "./components/layouts/MainLayout";
 
 // Pages
-import Home from "./pages/Home";
-import Events from "./pages/Events";
-import EventDetails from "./pages/EventDetails";
-import CreateEvent from "./pages/CreateEvent";
-import Vendors from "./pages/Vendors";
-import VendorDetails from "./pages/VendorDetails";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Dashboard from "./pages/Dashboard";
-import NotFound from "./pages/NotFound";
+import HomePage from "./pages/HomePage";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import DashboardPage from "./pages/DashboardPage";
+import NotFoundPage from "./pages/NotFoundPage";
 
 // Auth
-import PrivateRoute from "./components/auth/PrivateRoute";
 import { checkAuth } from "./store/authSlice";
+
+// Missing pages - will be created as placeholders
+// import EventsPage from "./pages/EventsPage";
+// import EventDetailsPage from "./pages/EventDetailsPage";
+// import CreateEventPage from "./pages/CreateEventPage";
+// import VendorsPage from "./pages/VendorsPage";
+// import VendorDetailsPage from "./pages/VendorDetailsPage";
 
 const theme = createTheme({
   palette: {
@@ -65,22 +66,21 @@ function App() {
       <CssBaseline />
       <Routes>
         <Route path="/" element={<MainLayout />}>
-          <Route index element={<Home />} />
-          <Route path="events" element={<Events />} />
-          <Route path="events/:id" element={<EventDetails />} />
-          <Route path="vendors" element={<Vendors />} />
-          <Route path="vendors/:id" element={<VendorDetails />} />
-          <Route path="login" element={<Login />} />
-          <Route path="register" element={<Register />} />
+          <Route index element={<HomePage />} />
+          {/* Commented out routes for pages we haven't created yet */}
+          {/* <Route path="events" element={<EventsPage />} />
+          <Route path="events/:id" element={<EventDetailsPage />} />
+          <Route path="vendors" element={<VendorsPage />} />
+          <Route path="vendors/:id" element={<VendorDetailsPage />} /> */}
+          <Route path="login" element={<LoginPage />} />
+          <Route path="register" element={<RegisterPage />} />
 
           {/* Protected Routes */}
-          <Route element={<PrivateRoute />}>
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="events/create" element={<CreateEvent />} />
-          </Route>
+          <Route path="dashboard" element={<DashboardPage />} />
+          {/* <Route path="events/create" element={<CreateEventPage />} /> */}
 
           {/* 404 Page */}
-          <Route path="*" element={<NotFound />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
     </ThemeProvider>

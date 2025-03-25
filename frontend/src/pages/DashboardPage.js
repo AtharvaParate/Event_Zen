@@ -25,7 +25,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import EventIcon from "@mui/icons-material/Event";
 import PeopleIcon from "@mui/icons-material/People";
-import { fetchUserEvents } from "../redux/slices/eventSlice";
+import { fetchEvents } from "../store/eventSlice";
 import PageHeader from "../components/common/PageHeader";
 import Loading from "../components/common/Loading";
 
@@ -69,8 +69,8 @@ const DashboardPage = () => {
   ]);
 
   useEffect(() => {
-    dispatch(fetchUserEvents());
-  }, [dispatch]);
+    dispatch(fetchEvents({ userId: user?.id }));
+  }, [dispatch, user]);
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);

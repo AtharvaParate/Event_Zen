@@ -1,7 +1,7 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Snackbar, Alert as MuiAlert } from "@mui/material";
-import { clearAlert } from "../../redux/slices/uiSlice";
+import { clearAlert } from "../../store/uiSlice";
 
 const AlertComponent = () => {
   const dispatch = useDispatch();

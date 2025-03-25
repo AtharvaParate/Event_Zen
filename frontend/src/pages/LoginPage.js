@@ -16,7 +16,7 @@ import {
   Alert,
 } from "@mui/material";
 import { Visibility, VisibilityOff, Email, Lock } from "@mui/icons-material";
-import { login } from "../redux/slices/authSlice";
+import { login } from "../store/authSlice";
 import Loading from "../components/common/Loading";
 
 const LoginPage = () => {

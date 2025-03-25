@@ -7,7 +7,7 @@ import { ThemeProvider, createTheme } from "@mui/material/styles";
 import Header from "./Header";
 import Footer from "./Footer";
 import Sidebar from "./Sidebar";
-import AlertMessage from "../common/AlertMessage";
+import Alert from "../common/Alert";
 import { clearAlert } from "../../store/uiSlice";
 
 const MainLayout = () => {
@@ -50,13 +50,7 @@ const MainLayout = () => {
 
         <Box component="main" sx={{ flexGrow: 1, py: 4 }}>
           <Container maxWidth="lg">
-            {alert && (
-              <AlertMessage
-                severity={alert.type}
-                message={alert.message}
-                onClose={handleCloseAlert}
-              />
-            )}
+            {alert && <Alert />}
             <Outlet />
           </Container>
         </Box>

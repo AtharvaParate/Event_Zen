@@ -25,7 +25,7 @@ import {
   Person,
   Check,
 } from "@mui/icons-material";
-import { register } from "../redux/slices/authSlice";
+import { register } from "../store/authSlice";
 import Loading from "../components/common/Loading";
 
 const RegisterPage = () => {
