@@ -14,6 +14,7 @@ import EventIcon from "@mui/icons-material/Event";
 import StorefrontIcon from "@mui/icons-material/Storefront";
 import PeopleIcon from "@mui/icons-material/People";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
+import PageContainer from "../components/common/PageContainer";
 
 const features = [
   {
@@ -48,20 +49,25 @@ const HomePage = () => {
       <Box
         sx={{
           bgcolor: "primary.main",
-          color: "primary.contrastText",
-          py: 8,
+          color: "white",
+          py: { xs: 6, md: 8 },
           mb: 6,
           width: "100%",
         }}
       >
-        <Box sx={{ px: { xs: 2, sm: 4 }, maxWidth: "1600px", mx: "auto" }}>
+        <PageContainer
+          sx={{
+            py: 0,
+            width: "100%",
+          }}
+        >
           <Grid
             container
             spacing={4}
             alignItems="center"
             justifyContent="center"
           >
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} md={6} sx={{ textAlign: "center" }}>
               <Typography variant="h2" component="h1" gutterBottom>
                 Simplify Your Event Planning
               </Typography>
@@ -69,7 +75,7 @@ const HomePage = () => {
                 Create, manage, and discover events with EventZen. The
                 all-in-one platform for event organizers and attendees.
               </Typography>
-              <Stack direction="row" spacing={2}>
+              <Stack direction="row" spacing={2} justifyContent="center">
                 <Button
                   component={RouterLink}
                   to="/events/create"
@@ -93,10 +99,10 @@ const HomePage = () => {
             <Grid item xs={12} md={6} sx={{ textAlign: "center" }}>
               <Box
                 component="img"
-                src={`${process.env.PUBLIC_URL}/images/hero-event.svg`}
+                src={`${process.env.PUBLIC_URL}/images/events/hero-image.avif`}
                 alt="Event Planning"
                 sx={{
-                  width: "100%",
+                  width: "95%",
                   height: "auto",
                   maxHeight: "400px",
                   display: { xs: "none", md: "block" },
@@ -109,11 +115,11 @@ const HomePage = () => {
               />
             </Grid>
           </Grid>
-        </Box>
+        </PageContainer>
       </Box>
 
       {/* Features Section */}
-      <Box sx={{ px: { xs: 2, sm: 4 }, maxWidth: "1600px", mx: "auto", mb: 8 }}>
+      <PageContainer sx={{ mb: 8 }}>
         <Typography
           variant="h3"
           component="h2"
@@ -166,13 +172,13 @@ const HomePage = () => {
             </Grid>
           ))}
         </Grid>
-      </Box>
+      </PageContainer>
 
       {/* CTA Section */}
       <Box
         sx={{
           bgcolor: "background.paper",
-          py: 8,
+          py: { xs: 6, md: 8 },
           borderTop: 1,
           borderBottom: 1,
           borderColor: "divider",
@@ -180,7 +186,12 @@ const HomePage = () => {
           width: "100%",
         }}
       >
-        <Box sx={{ px: { xs: 2, sm: 4 }, maxWidth: "1000px", mx: "auto" }}>
+        <PageContainer
+          sx={{
+            py: 0,
+            width: "100%",
+          }}
+        >
           <Typography variant="h3" component="h2" align="center" gutterBottom>
             Ready to Host Your Event?
           </Typography>
@@ -206,11 +217,11 @@ const HomePage = () => {
               Get Started Today
             </Button>
           </Box>
-        </Box>
+        </PageContainer>
       </Box>
 
       {/* Featured Events */}
-      <Box sx={{ px: { xs: 2, sm: 4 }, maxWidth: "1600px", mx: "auto", mb: 8 }}>
+      <PageContainer sx={{ mb: 8 }}>
         <Typography
           variant="h3"
           component="h2"
@@ -277,7 +288,7 @@ const HomePage = () => {
             View All Events
           </Button>
         </Box>
-      </Box>
+      </PageContainer>
     </Box>
   );
 };

@@ -1,12 +1,12 @@
 import React from "react";
-import { Container } from "@mui/material";
 import PageHeader from "../components/common/PageHeader";
 import EventForm from "../components/events/EventForm";
 import AddIcon from "@mui/icons-material/Add";
+import PageContainer from "../components/common/PageContainer";
 
 const CreateEventPage = () => {
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 8 }}>
+    <PageContainer>
       <PageHeader
         title="Create New Event"
         subtitle="Fill in the details to create your event"
@@ -18,7 +18,7 @@ const CreateEventPage = () => {
       />
 
       <EventForm />
-    </Container>
+    </PageContainer>
   );
 };
 

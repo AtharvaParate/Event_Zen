@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test Event Creation</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      form {
+        display: grid;
+        gap: 10px;
+      }
+      label {
+        font-weight: bold;
+      }
+      input,
+      textarea,
+      select {
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      button {
+        padding: 10px;
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      #response {
+        margin-top: 20px;
+        padding: 15px;
+        background-color: #f5f5f5;
+        border-radius: 4px;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Test Event Creation</h1>
+    <form id="eventForm">
+      <label for="title">Title:</label>
+      <input type="text" id="title" name="title" required />
+
+      <label for="description">Description:</label>
+      <textarea
+        id="description"
+        name="description"
+        rows="4"
+        required
+      ></textarea>
+
+      <label for="startTime">Start Time:</label>
+      <input type="datetime-local" id="startTime" name="startTime" required />
+
+      <label for="endTime">End Time:</label>
+      <input type="datetime-local" id="endTime" name="endTime" required />
+
+      <label for="location">Location:</label>
+      <input type="text" id="location" name="location" required />
+
+      <label for="category">Category:</label>
+      <select id="category" name="category">
+        <option value="BUSINESS">Business</option>
+        <option value="TECHNOLOGY">Technology</option>
+        <option value="HEALTH">Health</option>
+        <option value="MUSIC">Music</option>
+        <option value="ARTS">Arts</option>
+        <option value="FOOD">Food</option>
+        <option value="SPORTS">Sports</option>
+        <option value="EDUCATION">Education</option>
+        <option value="OTHER">Other</option>
+      </select>
+
+      <label for="maxAttendees">Max Attendees:</label>
+      <input
+        type="number"
+        id="maxAttendees"
+        name="maxAttendees"
+        min="1"
+        value="50"
+      />
+
+      <label for="price">Price:</label>
+      <input
+        type="number"
+        id="price"
+        name="price"
+        min="0"
+        step="0.01"
+        value="0"
+      />
+
+      <label for="status">Status:</label>
+      <select id="status" name="status">
+        <option value="DRAFT">Draft</option>
+        <option value="PUBLISHED">Published</option>
+        <option value="CANCELLED">Cancelled</option>
+        <option value="COMPLETED">Completed</option>
+      </select>
+
+      <button type="submit">Create Event</button>
+    </form>
+
+    <div id="response"></div>
+
+    <script>
+      const form = document.getElementById("eventForm");
+      const responseDiv = document.getElementById("response");
+
+      // Set default dates
+      const now = new Date();
+      const later = new Date(now.getTime() + 3600000); // 1 hour later
+
+      document.getElementById("startTime").value = now
+        .toISOString()
+        .slice(0, 16);
+      document.getElementById("endTime").value = later
+        .toISOString()
+        .slice(0, 16);
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const formData = new FormData(form);
+        const eventData = {};
+
+        formData.forEach((value, key) => {
+          eventData[key] = value;
+        });
+
+        // Convert numeric fields
+        eventData.maxAttendees = Number(eventData.maxAttendees);
+        eventData.price = Number(eventData.price);
+
+        responseDiv.textContent = "Submitting...";
+
+        try {
+          const response = await fetch(
+            "http://localhost:8082/api/events/public/create",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(eventData),
+            }
+          );
+
+          const result = await response.json();
+          responseDiv.textContent =
+            "Success!\n\n" + JSON.stringify(result, null, 2);
+        } catch (error) {
+          responseDiv.textContent = "Error: " + error.message;
+          console.error("Error:", error);
+        }
+      });
+    </script>
+  </body>
+</html>

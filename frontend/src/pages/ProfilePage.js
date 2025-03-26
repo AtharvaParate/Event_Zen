@@ -27,7 +27,6 @@ import {
   IconButton,
   Card,
   CardContent,
-  Slide,
 } from "@mui/material";
 import {
   Person as PersonIcon,
@@ -39,13 +38,17 @@ import {
   Security as SecurityIcon,
   Delete as DeleteIcon,
   PhotoCamera as PhotoCameraIcon,
+  // eslint-disable-next-line no-unused-vars
 } from "@mui/icons-material";
+// eslint-disable-next-line no-unused-vars
 import { getImageUrl, getFallbackImage } from "../utils/imageUtils";
 import { updateUserProfile } from "../store/authSlice"; // Import the action
+import { SafeSlide } from "../components/common/SafeTransition";
+import PageContainer from "../components/common/PageContainer";
 
 // Custom transition component to prevent scrollTop errors
 const Transition = React.forwardRef(function Transition(props, ref) {
-  return <Slide direction="up" ref={ref} {...props} />;
+  return <SafeSlide direction="up" ref={ref} {...props} />;
 });
 
 // Mock update user function (would come from Redux in real app)
@@ -72,6 +75,7 @@ function TabPanel(props) {
 }
 
 const ProfilePage = () => {
+  // eslint-disable-next-line no-unused-vars
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
@@ -288,16 +292,7 @@ const ProfilePage = () => {
   };
 
   return (
-    <Box
-      sx={{
-        width: "100%",
-        px: { xs: 2, sm: 4 },
-        maxWidth: "1600px",
-        mx: "auto",
-        mt: 4,
-        mb: 8,
-      }}
-    >
+    <PageContainer>
       {/* Main content grid */}
       <Grid container spacing={4}>
         {/* Sidebar with user info */}
@@ -732,7 +727,7 @@ const ProfilePage = () => {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </PageContainer>
   );
 };
 

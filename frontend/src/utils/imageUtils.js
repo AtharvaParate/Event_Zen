@@ -23,13 +23,13 @@ const DEFAULT_IMAGES = {
 export const getFallbackImage = (type) => {
   switch (type) {
     case "event":
-      return "/images/defaults/event-default.avif";
+      return "/images/event-1.avif";
     case "profile":
       return "/images/defaults/profile-default.avif";
     case "vendor":
       return "/images/defaults/vendor-default.avif";
     default:
-      return "/images/defaults/event-default.avif";
+      return "/images/event-1.avif";
   }
 };
 

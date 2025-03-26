@@ -23,7 +23,6 @@ import {
   DialogContentText,
   DialogActions,
   CardMedia,
-  Slide,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -31,14 +30,18 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import EventIcon from "@mui/icons-material/Event";
 import PeopleIcon from "@mui/icons-material/People";
-import { fetchEvents, deleteEvent, fetchUserEvents } from "../store/eventSlice";
+// eslint-disable-next-line no-unused-vars
+import { fetchEvents, deleteEvent } from "../store/eventSlice";
 import PageHeader from "../components/common/PageHeader";
 import Loading from "../components/common/Loading";
+// eslint-disable-next-line no-unused-vars
 import { getImageUrl, getFallbackImage } from "../utils/imageUtils";
+import { SafeSlide } from "../components/common/SafeTransition";
+import PageContainer from "../components/common/PageContainer";
 
 // Custom transition component to prevent scrollTop errors
 const Transition = React.forwardRef(function Transition(props, ref) {
-  return <Slide direction="up" ref={ref} {...props} />;
+  return <SafeSlide direction="up" ref={ref} {...props} />;
 });
 
 // Custom TabPanel component
@@ -59,6 +62,7 @@ function TabPanel(props) {
 }
 
 const DashboardPage = () => {
+  // eslint-disable-next-line no-unused-vars
   const [tabValue, setTabValue] = useState(0);
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
@@ -69,9 +73,16 @@ const DashboardPage = () => {
   const [eventToDelete, setEventToDelete] = useState(null);
 
   useEffect(() => {
+    // Fetch user's events
     dispatch(fetchEvents({ userId: user?.id }));
+
+    // Fetch events user is attending (You can add this later when API supports it)
+    // For now, you can simulate it by fetching all events
+    // In a real app, you'd have an endpoint like /api/users/{userId}/attending
+    // or pass a parameter like { attending: true, userId: user?.id }
     if (user?.id) {
-      dispatch(fetchUserEvents(user.id));
+      // Use fetchEvents with different parameters when API supports this
+      dispatch(fetchEvents({})); // Will be replaced with proper query when available
     }
   }, [dispatch, user]);
 
@@ -136,16 +147,7 @@ const DashboardPage = () => {
   }
 
   return (
-    <Box
-      sx={{
-        width: "100%",
-        px: { xs: 2, sm: 4 },
-        maxWidth: "1600px",
-        mx: "auto",
-        mt: 4,
-        mb: 8,
-      }}
-    >
+    <PageContainer>
       <PageHeader
         title={`Welcome, ${user?.firstName || "User"}!`}
         subtitle="Manage your events and profile"
@@ -423,7 +425,7 @@ const DashboardPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </PageContainer>
   );
 };
 

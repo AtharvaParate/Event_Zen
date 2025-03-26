@@ -7,7 +7,7 @@ spring:
       auto-index-creation: true
   security:
     jwt:
-      secret: test_secret_key_5f5e5d5c5b5a949392919291828384858
+      secret: dGVzdF9zZWNyZXRfa2V5X2Jhc2U2NF9lbmNvZGVkX2Zvcl9ldmVudHplbl90ZXN0cw==
       expiration: 3600000 # 1 hour
 
 logging:

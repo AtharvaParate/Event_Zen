@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Extremely Simple Event Creation Test</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        max-width: 500px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      form {
+        display: grid;
+        gap: 10px;
+      }
+      button {
+        margin-top: 20px;
+        padding: 10px;
+      }
+      pre {
+        background: #f0f0f0;
+        padding: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Simple Event Creation Test</h1>
+
+    <form id="eventForm">
+      <label
+        >Title: <input name="title" value="Simple Test Event" required
+      /></label>
+      <label
+        >Description:
+        <textarea name="description" required>This is a test event</textarea>
+      </label>
+      <label
+        >Location: <input name="location" value="Test Location" required
+      /></label>
+      <label
+        >Price: <input name="price" type="number" value="0" required
+      /></label>
+      <label
+        >Max Attendees:
+        <input name="maxAttendees" type="number" value="50" required
+      /></label>
+      <label
+        >Category:
+        <select name="category">
+          <option value="TECHNOLOGY">Technology</option>
+          <option value="BUSINESS">Business</option>
+          <option value="MUSIC">Music</option>
+        </select>
+      </label>
+      <button type="submit">Create Event</button>
+    </form>
+
+    <h3>Result:</h3>
+    <pre id="result">Click submit to create an event</pre>
+
+    <script>
+      // Extremely simple form submission
+      document
+        .getElementById("eventForm")
+        .addEventListener("submit", function (e) {
+          e.preventDefault();
+
+          const form = e.target;
+          const resultElem = document.getElementById("result");
+
+          // Create event data object from form
+          const eventData = {
+            title: form.title.value,
+            description: form.description.value,
+            location: form.location.value,
+            price: Number(form.price.value),
+            maxAttendees: Number(form.maxAttendees.value),
+            category: form.category.value,
+            startTime: new Date(Date.now() + 3600000).toISOString(), // 1 hour from now
+            endTime: new Date(Date.now() + 7200000).toISOString(), // 2 hours from now
+            status: "PUBLISHED",
+          };
+
+          resultElem.textContent = "Sending request...";
+
+          // Make the simplest possible fetch request
+          fetch("http://localhost:8082/api/events/public/create", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(eventData),
+          })
+            .then((response) => {
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.json();
+            })
+            .then((data) => {
+              resultElem.textContent =
+                "SUCCESS!\n\n" + JSON.stringify(data, null, 2);
+            })
+            .catch((error) => {
+              resultElem.textContent = "ERROR: " + error.message;
+              console.error("Error:", error);
+            });
+        });
+    </script>
+  </body>
+</html>

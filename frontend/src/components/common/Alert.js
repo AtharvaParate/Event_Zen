@@ -1,11 +1,12 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Snackbar, Alert as MuiAlert, Slide } from "@mui/material";
+import { Snackbar, Alert as MuiAlert } from "@mui/material";
 import { clearAlert } from "../../store/uiSlice";
+import { SafeSlide } from "./SafeTransition";
 
 // Custom transition to avoid the scrollTop error
 const SlideTransition = (props) => {
-  return <Slide {...props} direction="up" />;
+  return <SafeSlide {...props} direction="up" />;
 };
 
 const AlertComponent = (props) => {

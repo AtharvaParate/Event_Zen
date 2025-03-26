@@ -27,6 +27,7 @@ import {
   safeMenuProps,
   safeSnackbarProps,
 } from "../../utils/muiFixes"; // Import from centralized utilities
+import { getFallbackImage } from "../../utils/imageUtils"; // Import the utility function
 
 // Categories for dropdown
 const categories = [
@@ -42,12 +43,13 @@ const categories = [
 ];
 
 const EventForm = ({ event = null }) => {
+  // eslint-disable-next-line no-unused-vars
   const isEditMode = !!event;
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  // Default fallback image
-  const fallbackImage = `${process.env.PUBLIC_URL}/images/defaults/event-default.jpg`;
+  // Use the image utility for the fallback image with specific preference for event-1.avif
+  const fallbackImage = `${process.env.PUBLIC_URL}/images/event-1.avif`;
 
   // Helper function to format date for input field
   const formatDateForInput = (dateString) => {
@@ -62,13 +64,14 @@ const EventForm = ({ event = null }) => {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    startDate: formatDateForInput(new Date()),
-    endDate: formatDateForInput(new Date(Date.now() + 3600000)), // Default 1 hour later
+    startTime: formatDateForInput(new Date()),
+    endTime: formatDateForInput(new Date(Date.now() + 3600000)), // Default 1 hour later
     location: "",
     category: "OTHER",
-    capacity: 50,
+    maxAttendees: 50,
     price: 0,
     image: "",
+    status: "DRAFT",
   });
 
   const [formErrors, setFormErrors] = useState({});
@@ -87,13 +90,14 @@ const EventForm = ({ event = null }) => {
       setFormData({
         title: event.title || "",
         description: event.description || "",
-        startDate: formatDateForInput(event.startDate),
-        endDate: formatDateForInput(event.endDate),
+        startTime: formatDateForInput(event.startTime || event.startDate),
+        endTime: formatDateForInput(event.endTime || event.endDate),
         location: event.location || "",
         category: event.category || "OTHER",
-        capacity: event.capacity || 50,
+        maxAttendees: event.maxAttendees || event.capacity || 50,
         price: event.price || 0,
         image: event.image || "",
+        status: event.status || "DRAFT",
       });
 
       // Set image preview if exists
@@ -153,18 +157,18 @@ const EventForm = ({ event = null }) => {
       errors.location = "Location is required";
     }
 
-    if (!formData.startDate) {
-      errors.startDate = "Start date is required";
+    if (!formData.startTime) {
+      errors.startTime = "Start time is required";
     }
 
-    if (!formData.endDate) {
-      errors.endDate = "End date is required";
-    } else if (new Date(formData.endDate) <= new Date(formData.startDate)) {
-      errors.endDate = "End date must be after start date";
+    if (!formData.endTime) {
+      errors.endTime = "End time is required";
+    } else if (new Date(formData.endTime) <= new Date(formData.startTime)) {
+      errors.endTime = "End time must be after start time";
     }
 
-    if (formData.capacity <= 0) {
-      errors.capacity = "Capacity must be greater than 0";
+    if (formData.maxAttendees <= 0) {
+      errors.maxAttendees = "Maximum attendees must be greater than 0";
     }
 
     if (formData.price < 0) {
@@ -192,43 +196,39 @@ const EventForm = ({ event = null }) => {
     setIsSubmitting(true);
 
     try {
-      // Create a clean copy of form data with correct types
+      // Format dates in ISO format
+      const startTimeISO = new Date(formData.startTime).toISOString();
+      const endTimeISO = new Date(formData.endTime).toISOString();
+
+      // Create a clean copy of form data with correct types and exact field names
       const eventData = {
-        ...formData,
-        startDate: new Date(formData.startDate).toISOString(),
-        endDate: new Date(formData.endDate).toISOString(),
-        capacity: Number(formData.capacity),
+        title: formData.title,
+        description: formData.description,
+        startTime: startTimeISO,
+        endTime: endTimeISO,
+        location: formData.location,
+        category: formData.category,
+        maxAttendees: Number(formData.maxAttendees),
         price: Number(formData.price),
+        status: formData.status || "DRAFT",
       };
 
       console.log("Submitting event data:", eventData);
 
       let result;
 
-      // Try direct API call if Redux approach fails
+      // Try direct API call to avoid Redux complications
       try {
-        if (isEditMode) {
-          result = await dispatch(
-            updateEvent({
-              id: event.id,
-              eventData,
-            })
-          ).unwrap();
-        } else {
-          result = await dispatch(createEvent(eventData)).unwrap();
-        }
-      } catch (reduxError) {
-        console.warn(
-          "Redux dispatch failed, trying direct API call:",
-          reduxError
-        );
-
-        // Fallback to direct API call
         if (isEditMode) {
           result = await eventApi.updateEvent(event.id, eventData);
         } else {
           result = await eventApi.createEvent(eventData);
         }
+
+        console.log("Direct API call succeeded:", result);
+      } catch (apiError) {
+        console.error("Direct API call failed:", apiError);
+        throw apiError; // Re-throw to be caught by outer catch
       }
 
       console.log("Event saved successfully:", result);
@@ -265,6 +265,7 @@ const EventForm = ({ event = null }) => {
       setIsSubmitting(false);
     }
   };
+  // eslint-disable-next-line no-unused-vars
 
   const handleCloseAlert = (event, reason) => {
     if (reason === "clickaway") {
@@ -338,10 +339,24 @@ const EventForm = ({ event = null }) => {
                     alt="Event Preview"
                     onError={(e) => {
                       console.log(
-                        "Event preview image load error, using fallback"
+                        "Event preview image load error, using fallback in event/create"
                       );
                       e.target.onerror = null; // Prevent infinite loop
                       e.target.src = fallbackImage;
+
+                      // If the fallback also fails, try another file format or use data URI
+                      e.target.onerror = () => {
+                        console.log("Fallback image failed too, trying a different format");
+                        // Try with another image in case the first one fails
+                        e.target.src = `${process.env.PUBLIC_URL}/images/event-2.avif`;
+                        
+                        // Final fallback to data URI if all else fails
+                        e.target.onerror = () => {
+                          console.log("All fallbacks failed, using data URI");
+                          e.target.src = "data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22288%22%20height%3D%22200%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20288%20200%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_16ace7acfe3%20text%20%7B%20fill%3Argba(201%2C201%2C201%2C.5)%3Bfont-weight%3Anormal%3Bfont-family%3AArial%2C%20Helvetica%2C%20Open%20Sans%2C%20sans-serif%2C%20monospace%3Bfont-size%3A14pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder_16ace7acfe3%22%3E%3Crect%20width%3D%22288%22%20height%3D%22200%22%20fill%3D%22%23333%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%2296.3515625%22%20y%3D%22106.1%22%3EEvent%20Image%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E";
+                          e.target.onerror = null;
+                        };
+                      };
                     }}
                     sx={disableTransitions} // Apply global transition disabling
                   />
@@ -406,12 +421,12 @@ const EventForm = ({ event = null }) => {
                 <TextField
                   fullWidth
                   label="Start Date & Time"
-                  name="startDate"
+                  name="startTime"
                   type="datetime-local"
-                  value={formData.startDate}
+                  value={formData.startTime}
                   onChange={handleChange}
-                  error={!!formErrors.startDate}
-                  helperText={formErrors.startDate}
+                  error={!!formErrors.startTime}
+                  helperText={formErrors.startTime}
                   InputLabelProps={{
                     shrink: true,
                   }}
@@ -424,12 +439,12 @@ const EventForm = ({ event = null }) => {
                 <TextField
                   fullWidth
                   label="End Date & Time"
-                  name="endDate"
+                  name="endTime"
                   type="datetime-local"
-                  value={formData.endDate}
+                  value={formData.endTime}
                   onChange={handleChange}
-                  error={!!formErrors.endDate}
-                  helperText={formErrors.endDate}
+                  error={!!formErrors.endTime}
+                  helperText={formErrors.endTime}
                   InputLabelProps={{
                     shrink: true,
                   }}
@@ -480,13 +495,13 @@ const EventForm = ({ event = null }) => {
               <Grid item xs={12} md={4}>
                 <TextField
                   fullWidth
-                  label="Capacity"
-                  name="capacity"
+                  label="Max Attendees"
+                  name="maxAttendees"
                   type="number"
-                  value={formData.capacity}
+                  value={formData.maxAttendees}
                   onChange={handleChange}
-                  error={!!formErrors.capacity}
-                  helperText={formErrors.capacity}
+                  error={!!formErrors.maxAttendees}
+                  helperText={formErrors.maxAttendees}
                   InputProps={{
                     inputProps: { min: 1 },
                   }}

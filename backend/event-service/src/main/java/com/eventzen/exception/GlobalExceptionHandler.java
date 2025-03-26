@@ -1,16 +1,17 @@
 package com.eventzen.exception;
 
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
-
-import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 /**
  * Global exception handler for the application
@@ -48,6 +49,17 @@ public class GlobalExceptionHandler {
             IllegalArgumentException ex, WebRequest request) {
         logger.error("Illegal argument: {}", ex.getMessage());
         return buildErrorResponse(ex.getMessage(), HttpStatus.BAD_REQUEST, request);
+    }
+
+    /**
+     * Handle BadCredentialsException
+     */
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<Object> handleBadCredentialsException(
+            BadCredentialsException ex, WebRequest request) {
+        logger.error("Authentication failed: {}", ex.getMessage());
+        return buildErrorResponse("Invalid username or password",
+                HttpStatus.UNAUTHORIZED, request);
     }
 
     /**

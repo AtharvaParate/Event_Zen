@@ -41,6 +41,7 @@ const categories = [
   { value: "OTHER", label: "Other" },
 ];
 
+  // eslint-disable-next-line no-unused-vars
 const EventsPage = () => {
   const dispatch = useDispatch();
   const { events, loading } = useSelector((state) => state.events);

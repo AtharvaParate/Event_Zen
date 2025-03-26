@@ -1,12 +1,13 @@
 import React from "react";
 import { Link as RouterLink } from "react-router-dom";
-import { Box, Button, Container, Typography } from "@mui/material";
+import { Box, Button, Typography } from "@mui/material";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import HomeIcon from "@mui/icons-material/Home";
+import PageContainer from "../components/common/PageContainer";
 
 const NotFoundPage = () => {
   return (
-    <Container maxWidth="md">
+    <PageContainer>
       <Box
         sx={{
           display: "flex",
@@ -50,7 +51,7 @@ const NotFoundPage = () => {
           Back to Home
         </Button>
       </Box>
-    </Container>
+    </PageContainer>
   );
 };
 

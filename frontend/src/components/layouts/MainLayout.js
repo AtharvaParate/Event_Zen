@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
-import { Box, CssBaseline, Snackbar, Slide } from "@mui/material";
+import { Box, CssBaseline, Snackbar, Container } from "@mui/material";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 
 import Header from "./Header";
@@ -9,14 +9,17 @@ import Footer from "./Footer";
 import Sidebar from "./Sidebar";
 import Alert from "../common/Alert";
 import { clearAlert } from "../../store/uiSlice";
+import { SafeSlide } from "../common/SafeTransition";
 
 // Transition function for Snackbar to prevent scrollTop error
 const SlideTransition = (props) => {
-  return <Slide {...props} direction="up" />;
+  return <SafeSlide {...props} direction="up" />;
 };
 
+// Fixed drawer width - must be consistent across all components
 const drawerWidth = 240;
 
+// eslint-disable-next-line no-unused-vars
 const MainLayout = () => {
   const dispatch = useDispatch();
   const { alert, darkMode } = useSelector((state) => state.ui);
@@ -46,6 +49,10 @@ const MainLayout = () => {
               backgroundColor: darkMode ? "#121212" : "#f7f9fc",
               color: darkMode ? "#ffffff" : "#000000",
               transition: "background-color 0.2s ease",
+              margin: 0,
+              padding: 0,
+              boxSizing: "border-box",
+              overflowX: "hidden",
             },
           },
         },
@@ -86,11 +93,12 @@ const MainLayout = () => {
 
   return (
     <ThemeProvider theme={theme}>
-      <Box sx={{ display: "flex" }}>
+      <Box sx={{ display: "flex", width: "100%" }}>
         <CssBaseline />
         <Header onDrawerToggle={handleDrawerToggle} />
         <Sidebar mobileOpen={mobileOpen} onDrawerToggle={handleDrawerToggle} />
 
+        {/* Main content area */}
         <Box
           component="main"
           sx={{
@@ -100,15 +108,22 @@ const MainLayout = () => {
             minHeight: "100vh",
             display: "flex",
             flexDirection: "column",
-            bgcolor: "background.default", // Explicitly set background color
-            color: "text.primary", // Explicitly set text color
+            bgcolor: "background.default",
+            color: "text.primary",
+            overflow: "hidden",
+            position: "relative",
+            boxSizing: "border-box",
           }}
         >
           <Box
             sx={{
               flexGrow: 1,
+              width: "100%",
               marginTop: "64px", // Height of AppBar
-              padding: { xs: 2, md: 3 },
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              justifyContent: "flex-start",
             }}
           >
             {alert && (

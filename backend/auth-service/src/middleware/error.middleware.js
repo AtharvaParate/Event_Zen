@@ -1,42 +1,24 @@
 const errorHandler = (err, req, res, next) => {
-  console.error(err.stack);
-
-  // Sequelize validation errors
-  if (err.name === "SequelizeValidationError") {
-    return res.status(400).json({
-      message: "Validation error",
-      errors: err.errors.map((e) => ({
-        field: e.path,
-        message: e.message,
-      })),
-    });
-  }
-
-  // Sequelize unique constraint errors
-  if (err.name === "SequelizeUniqueConstraintError") {
-    return res.status(400).json({
-      message: "Unique constraint error",
-      errors: err.errors.map((e) => ({
-        field: e.path,
-        message: e.message,
-      })),
-    });
-  }
+  console.error("Error:", err);
 
   // JWT errors
-  if (err.name === "JsonWebTokenError") {
-    return res.status(401).json({
-      message: "Invalid token",
-    });
+  if (err.name === "JsonWebTokenError" || err.name === "TokenExpiredError") {
+    return res.status(401).json({ message: "Invalid or expired token" });
   }
 
-  if (err.name === "TokenExpiredError") {
-    return res.status(401).json({
-      message: "Token expired",
-    });
+  // Sequelize validation errors
+  if (
+    err.name === "SequelizeValidationError" ||
+    err.name === "SequelizeUniqueConstraintError"
+  ) {
+    const errors = err.errors.map((e) => ({
+      field: e.path,
+      message: e.message,
+    }));
+    return res.status(400).json({ message: "Validation error", errors });
   }
 
-  // Default error
+  // Default server error
   res.status(500).json({
     message: "Internal server error",
     error: process.env.NODE_ENV === "development" ? err.message : undefined,

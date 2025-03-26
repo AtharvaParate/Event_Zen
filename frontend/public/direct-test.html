@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Direct Event Creation Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      button {
+        padding: 10px 20px;
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 10px 0;
+      }
+      pre {
+        background-color: #f5f5f5;
+        padding: 15px;
+        border-radius: 4px;
+        overflow: auto;
+        max-height: 300px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Direct Event API Test</h1>
+
+    <p>
+      This page tests creating an event directly using a simple XHR request
+      without any libraries.
+    </p>
+
+    <button id="createEventBtn">Create Test Event</button>
+
+    <h3>Request:</h3>
+    <pre id="requestData"></pre>
+
+    <h3>Response:</h3>
+    <pre id="responseData">Click the button to make the request...</pre>
+
+    <script>
+      document
+        .getElementById("createEventBtn")
+        .addEventListener("click", function () {
+          // Create event data - simple hardcoded test event
+          const eventData = {
+            title: "Direct Test Event",
+            description: "This event was created directly with XHR",
+            startTime: new Date(Date.now() + 3600000).toISOString(), // 1 hour from now
+            endTime: new Date(Date.now() + 7200000).toISOString(), // 2 hours from now
+            location: "Test Location",
+            category: "TECHNOLOGY",
+            maxAttendees: 50,
+            price: 0,
+            status: "PUBLISHED",
+          };
+
+          // Display request data
+          document.getElementById("requestData").textContent = JSON.stringify(
+            eventData,
+            null,
+            2
+          );
+
+          // Create XHR request
+          const xhr = new XMLHttpRequest();
+          xhr.open(
+            "POST",
+            "http://localhost:8082/api/events/public/create",
+            true
+          );
+          xhr.setRequestHeader("Content-Type", "application/json");
+
+          // Handle response
+          xhr.onload = function () {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              try {
+                const response = JSON.parse(xhr.responseText);
+                document.getElementById("responseData").textContent =
+                  "SUCCESS!\n\n" + JSON.stringify(response, null, 2);
+              } catch (e) {
+                document.getElementById("responseData").textContent =
+                  "Error parsing response: " +
+                  e.message +
+                  "\n\nRaw response:\n" +
+                  xhr.responseText;
+              }
+            } else {
+              document.getElementById("responseData").textContent =
+                "Error: " +
+                xhr.status +
+                " " +
+                xhr.statusText +
+                "\n\n" +
+                xhr.responseText;
+            }
+          };
+
+          // Handle errors
+          xhr.onerror = function () {
+            document.getElementById("responseData").textContent =
+              "Request failed. Check console for details.";
+            console.error("XHR Error:", xhr);
+          };
+
+          // Send request
+          xhr.send(JSON.stringify(eventData));
+          document.getElementById("responseData").textContent =
+            "Sending request...";
+        });
+    </script>
+  </body>
+</html>

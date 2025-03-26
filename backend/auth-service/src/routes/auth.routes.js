@@ -1,10 +1,16 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
-const User = require("../models/user.model");
+const { User } = require("../models");
+const { auth } = require("../middleware/auth.middleware");
 const router = express.Router();
 
-// Register new user
-router.post("/register", async (req, res) => {
+// Health check endpoint
+router.get("/health", (req, res) => {
+  res.json({ status: "UP", message: "Auth service is running" });
+});
+
+// Register
+router.post("/register", async (req, res, next) => {
   try {
     const { email, password, firstName, lastName, role } = req.body;
 
@@ -20,14 +26,14 @@ router.post("/register", async (req, res) => {
       password,
       firstName,
       lastName,
-      role,
+      role: role || "attendee",
     });
 
     // Generate JWT token
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: "24h" }
+      { expiresIn: process.env.JWT_EXPIRES_IN }
     );
 
     res.status(201).json({
@@ -42,14 +48,12 @@ router.post("/register", async (req, res) => {
       },
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error registering user", error: error.message });
+    next(error);
   }
 });
 
-// Login user
-router.post("/login", async (req, res) => {
+// Login
+router.post("/login", async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
@@ -59,20 +63,22 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // Check password
-    const isValidPassword = await user.comparePassword(password);
-    if (!isValidPassword) {
+    // Validate password
+    const isPasswordValid = await user.validatePassword(password);
+    if (!isPasswordValid) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // Update last login
-    await user.update({ lastLogin: new Date() });
+    // Check if user is active
+    if (!user.isActive) {
+      return res.status(401).json({ message: "Account is deactivated" });
+    }
 
     // Generate JWT token
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: "24h" }
+      { expiresIn: process.env.JWT_EXPIRES_IN }
     );
 
     res.json({
@@ -87,12 +93,12 @@ router.post("/login", async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: "Error logging in", error: error.message });
+    next(error);
   }
 });
 
 // Get current user
-router.get("/me", async (req, res) => {
+router.get("/me", auth, async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id, {
       attributes: { exclude: ["password"] },

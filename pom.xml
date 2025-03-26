@@ -1,0 +1,5 @@
+<groupId>com.eventzen</groupId>
+<artifactId>event-service</artifactId>
+<version>1.0.0</version>
+<name>EventZen Event Service</name>
+<description>Event management service for EventZen application</description> 

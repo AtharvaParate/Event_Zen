@@ -1,12 +1,12 @@
 import React, { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { Container } from "@mui/material";
 import PageHeader from "../components/common/PageHeader";
 import EventForm from "../components/events/EventForm";
 import Loading from "../components/common/Loading";
 import { fetchEvent } from "../store/eventSlice";
 import EditIcon from "@mui/icons-material/Edit";
+import PageContainer from "../components/common/PageContainer";
 
 const EditEventPage = () => {
   const { id } = useParams();
@@ -24,24 +24,24 @@ const EditEventPage = () => {
 
   if (error) {
     return (
-      <Container>
+      <PageContainer>
         <div>Error loading event: {error}</div>
         <button onClick={() => navigate(-1)}>Go Back</button>
-      </Container>
+      </PageContainer>
     );
   }
 
   if (!event) {
     return (
-      <Container>
+      <PageContainer>
         <div>Event not found</div>
         <button onClick={() => navigate("/events")}>Browse Events</button>
-      </Container>
+      </PageContainer>
     );
   }
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 8 }}>
+    <PageContainer>
       <PageHeader
         title={`Edit: ${event.title}`}
         subtitle="Update your event details"
@@ -54,7 +54,7 @@ const EditEventPage = () => {
       />
 
       <EventForm event={event} />
-    </Container>
+    </PageContainer>
   );
 };
 

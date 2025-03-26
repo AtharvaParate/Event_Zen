@@ -64,7 +64,8 @@ const Header = ({ onDrawerToggle }) => {
       sx={{
         width: { xs: "100%", md: `calc(100% - ${drawerWidth}px)` },
         ml: { xs: 0, md: `${drawerWidth}px` },
-        zIndex: (theme) => theme.zIndex.drawer + 1,
+        zIndex: theme.zIndex.drawer + 1,
+        boxSizing: "border-box",
       }}
     >
       <Toolbar>
