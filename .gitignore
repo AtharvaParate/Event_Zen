@@ -29,6 +29,7 @@ yarn-debug.log*
 yarn-error.log*
 logs
 *.log
+nohup.out
 
 # Editor directories and files
 .idea
@@ -44,4 +45,38 @@ logs
 docker-compose.override.yml
 
 # System Files
-Thumbs.db 
+Thumbs.db
+
+# Java build artifacts
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+*.class
+*.jar
+*.war
+*.ear
+
+# Database files
+*.sqlite
+*.db
+*.sqlite3
+
+# Backup files
+*.bak
+*~
+*.swp
+*.tmp
+
+# Cache
+.eslintcache
+.cache/
+frontend/node_modules/.cache/
+
+# macOS specific
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes 
