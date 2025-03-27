@@ -14,11 +14,17 @@ import {
   DialogActions,
   Container,
   CircularProgress,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import {
   Delete as DeleteIcon,
   ArrowBack as ArrowBackIcon,
-  Edit as EditIcon,
   Event as EventIcon,
   LocationOn as LocationOnIcon,
   Category as CategoryIcon,
@@ -26,6 +32,7 @@ import {
   AttachMoney as AttachMoneyIcon,
 } from "@mui/icons-material";
 import { fetchEvent, deleteEvent } from "../store/eventSlice";
+import { registerForEvent, mockRegisterForEvent } from "../api/attendeeApi";
 
 const EventDetailPage = () => {
   const { id } = useParams();
@@ -35,6 +42,21 @@ const EventDetailPage = () => {
   const { user } = useSelector((state) => state.auth);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
+  const [registrationForm, setRegistrationForm] = useState({
+    firstName: user?.firstName || "",
+    lastName: user?.lastName || "",
+    email: user?.email || "",
+    phoneNumber: "",
+    ticketType: "STANDARD",
+    notes: "",
+  });
+  const [formErrors, setFormErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
 
   useEffect(() => {
     console.log("Fetching event with ID:", id);
@@ -76,12 +98,97 @@ const EventDetailPage = () => {
     setRegisterDialogOpen(true);
   };
 
-  const handleRegisterConfirm = () => {
-    console.log("Registering for event:", event.id);
-    // In a real app, this would make an API call to register the user
-    setRegisterDialogOpen(false);
-    // Show success message or update UI
-    alert("You've successfully registered for this event!");
+  const handleRegistrationFormChange = (e) => {
+    const { name, value } = e.target;
+    setRegistrationForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    // Clear error for this field when user types
+    if (formErrors[name]) {
+      setFormErrors((prev) => ({
+        ...prev,
+        [name]: "",
+      }));
+    }
+  };
+
+  const validateForm = () => {
+    const errors = {};
+
+    if (!registrationForm.firstName) {
+      errors.firstName = "First name is required";
+    }
+
+    if (!registrationForm.lastName) {
+      errors.lastName = "Last name is required";
+    }
+
+    if (!registrationForm.email) {
+      errors.email = "Email is required";
+    } else if (!/\S+@\S+\.\S+/.test(registrationForm.email)) {
+      errors.email = "Email is invalid";
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleRegisterConfirm = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // Set the proper price from the event
+      const ticketPrice = event.price || 0;
+
+      // Use the mock version in development, real version in production
+      const result =
+        process.env.NODE_ENV === "development"
+          ? await mockRegisterForEvent(
+              { ...registrationForm, ticketPrice },
+              event.id
+            )
+          : await registerForEvent(
+              { ...registrationForm, ticketPrice },
+              event.id
+            );
+
+      console.log("Registration result:", result);
+      setRegisterDialogOpen(false);
+
+      // Show success message
+      setSnackbar({
+        open: true,
+        message: "Registration successful! Check your email for confirmation.",
+        severity: "success",
+      });
+
+      // Reset form
+      setRegistrationForm({
+        firstName: user?.firstName || "",
+        lastName: user?.lastName || "",
+        email: user?.email || "",
+        phoneNumber: "",
+        ticketType: "STANDARD",
+        notes: "",
+      });
+    } catch (error) {
+      console.error("Registration failed:", error);
+      setSnackbar({
+        open: true,
+        message: `Registration failed: ${
+          error.message || "Please try again later"
+        }`,
+        severity: "error",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleRegisterCancel = () => {
@@ -324,6 +431,13 @@ const EventDetailPage = () => {
     }
   };
 
+  const handleSnackbarClose = () => {
+    setSnackbar((prev) => ({
+      ...prev,
+      open: false,
+    }));
+  };
+
   if (loading) {
     return (
       <Container>
@@ -397,178 +511,195 @@ const EventDetailPage = () => {
   });
 
   return (
-    <Container>
-      <Box sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Box mb={3}>
         <Button
           component={Link}
           to="/events"
           startIcon={<ArrowBackIcon />}
-          sx={{ mb: 2 }}
+          variant="text"
+          color="inherit"
         >
           Back to Events
         </Button>
+      </Box>
 
-        {/* Debug info */}
-        <div style={{ display: "none" }}>
-          Current user: {JSON.stringify(user)}
-          <br />
-          Event: {JSON.stringify(event)}
-          <br />
-          Event Organizer: {event.organizerId}
-          <br />
-          Is organizer: {isOrganizer ? "Yes" : "No"}
-        </div>
-
-        {/* Event header with title and actions */}
+      {loading && (
         <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 2,
-          }}
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          height="300px"
         >
-          <Typography variant="h4" component="h1" gutterBottom>
-            {event.title}
-          </Typography>
-          {isOrganizer && (
-            <Box>
-              <Button
-                variant="contained"
-                color="error"
-                startIcon={<DeleteIcon />}
-                onClick={handleDeleteClick}
-                sx={{ mr: 1 }}
-              >
-                Delete
-              </Button>
-              <Button
-                variant="contained"
-                color="primary"
-                component={Link}
-                to={`/events/edit/${id}`}
-              >
-                Edit Event
-              </Button>
-            </Box>
-          )}
+          <CircularProgress />
         </Box>
+      )}
 
-        {/* Event Image */}
-        <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Event Image
-          </Typography>
-          <Box sx={{ display: "flex", justifyContent: "center" }}>
-            <img
-              src={`${
-                process.env.PUBLIC_URL
-              }/images/events/event-${getImageIndex(event.id)}.avif`}
-              alt={event.title}
-              style={{
-                maxWidth: "100%",
-                maxHeight: "400px",
-                objectFit: "cover",
-                borderRadius: "8px",
-              }}
-              onError={(e) => {
-                console.log(
-                  `Image load error for event ${event.id}, falling back to default`
-                );
-                e.target.onerror = null; // Prevent infinite loop
-                e.target.src = `${process.env.PUBLIC_URL}/images/defaults/event-default.avif`;
-              }}
-            />
-          </Box>
-        </Paper>
+      {error && <Typography color="error">{error}</Typography>}
 
-        <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Event Details
-          </Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
-              <Typography variant="subtitle1">
-                <EventIcon
-                  fontSize="small"
-                  sx={{ mr: 1, verticalAlign: "middle" }}
-                />
-                Start: {formatDateTime(event.startTime || event.startDate)}
-              </Typography>
+      {!loading && !error && event && (
+        <>
+          <Grid container spacing={4}>
+            <Grid item xs={12} md={6}>
+              <img
+                src={`${
+                  process.env.PUBLIC_URL
+                }/images/events/event-${getImageIndex(event.id)}.avif`}
+                alt={event.title}
+                style={{
+                  width: "100%",
+                  height: "auto",
+                  borderRadius: "8px",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                }}
+                onError={(e) => {
+                  console.log(
+                    `Image load error for event ${event.id}, falling back to default`
+                  );
+                  e.target.onerror = null; // Prevent infinite loop
+                  e.target.src = `${process.env.PUBLIC_URL}/images/defaults/event-default.avif`;
+                }}
+              />
+
+              {/* Add prominent registration button */}
+              <Box mt={2} display="flex" justifyContent="center">
+                <Button
+                  variant="contained"
+                  color="primary"
+                  size="large"
+                  onClick={handleRegisterClick}
+                  startIcon={<EventIcon />}
+                  fullWidth
+                  sx={{
+                    py: 1.5,
+                    fontSize: "1.1rem",
+                    fontWeight: "bold",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                    "&:hover": {
+                      boxShadow: "0 6px 16px rgba(0,0,0,0.2)",
+                    },
+                  }}
+                >
+                  Register Now
+                </Button>
+              </Box>
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <Typography variant="subtitle1">
-                <EventIcon
-                  fontSize="small"
-                  sx={{ mr: 1, verticalAlign: "middle" }}
-                />
-                End: {formatDateTime(event.endTime || event.endDate)}
-              </Typography>
-            </Grid>
-            <Grid item xs={12}>
-              <Typography variant="subtitle1">
-                <LocationOnIcon
-                  fontSize="small"
-                  sx={{ mr: 1, verticalAlign: "middle" }}
-                />
-                Location: {formatLocation(event.location)}
-              </Typography>
-            </Grid>
-            <Grid item xs={12}>
-              <Typography variant="subtitle1">
-                <CategoryIcon
-                  fontSize="small"
-                  sx={{ mr: 1, verticalAlign: "middle" }}
-                />
-                Category: {event.category || "Uncategorized"}
-              </Typography>
-            </Grid>
-            <Grid item xs={12}>
-              <Typography variant="subtitle1">
-                <PeopleIcon
-                  fontSize="small"
-                  sx={{ mr: 1, verticalAlign: "middle" }}
-                />
-                Capacity:{" "}
-                {event.maxAttendees
-                  ? `${event.attendees?.length || 0}/${event.maxAttendees}`
-                  : "Unlimited"}
-              </Typography>
-            </Grid>
-            <Grid item xs={12}>
-              <Typography variant="subtitle1">
-                <AttachMoneyIcon
-                  fontSize="small"
-                  sx={{ mr: 1, verticalAlign: "middle" }}
-                />
-                Price: {event.price ? `$${event.price.toFixed(2)}` : "Free"}
-              </Typography>
+
+            <Grid item xs={12} md={6}>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  mb: 3,
+                }}
+              >
+                <Typography variant="h4" component="h1" gutterBottom>
+                  {event.title}
+                </Typography>
+
+                {user && user.id === event.organizer?.id && (
+                  <Box>
+                    <Button
+                      onClick={handleEditClick}
+                      color="primary"
+                      sx={{ mr: 1 }}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      onClick={handleDeleteClick}
+                      color="error"
+                      startIcon={<DeleteIcon />}
+                    >
+                      Delete
+                    </Button>
+                  </Box>
+                )}
+              </Box>
+
+              {/* Keep the rest of the content */}
+              <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                  Event Details
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle1">
+                      <EventIcon
+                        fontSize="small"
+                        sx={{ mr: 1, verticalAlign: "middle" }}
+                      />
+                      Start:{" "}
+                      {formatDateTime(event.startTime || event.startDate)}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle1">
+                      <EventIcon
+                        fontSize="small"
+                        sx={{ mr: 1, verticalAlign: "middle" }}
+                      />
+                      End: {formatDateTime(event.endTime || event.endDate)}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle1">
+                      <LocationOnIcon
+                        fontSize="small"
+                        sx={{ mr: 1, verticalAlign: "middle" }}
+                      />
+                      Location: {formatLocation(event.location)}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle1">
+                      <CategoryIcon
+                        fontSize="small"
+                        sx={{ mr: 1, verticalAlign: "middle" }}
+                      />
+                      Category: {event.category || "Uncategorized"}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle1">
+                      <PeopleIcon
+                        fontSize="small"
+                        sx={{ mr: 1, verticalAlign: "middle" }}
+                      />
+                      Capacity:{" "}
+                      {event.maxAttendees
+                        ? `${event.attendees?.length || 0}/${
+                            event.maxAttendees
+                          }`
+                        : "Unlimited"}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle1">
+                      <AttachMoneyIcon
+                        fontSize="small"
+                        sx={{ mr: 1, verticalAlign: "middle" }}
+                      />
+                      Price:{" "}
+                      {event.price ? `$${event.price.toFixed(2)}` : "Free"}
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </Paper>
+
+              <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                  Description
+                </Typography>
+                <Typography variant="body1" sx={{ whiteSpace: "pre-line" }}>
+                  {event.description || "No description available."}
+                </Typography>
+              </Paper>
             </Grid>
           </Grid>
-
-          {!isOrganizer && (
-            <Button
-              variant="contained"
-              color="primary"
-              fullWidth
-              size="large"
-              onClick={handleRegisterClick}
-              sx={{ mt: 3 }}
-            >
-              Register for Event
-            </Button>
-          )}
-        </Paper>
-
-        <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Description
-          </Typography>
-          <Typography variant="body1" sx={{ whiteSpace: "pre-line" }}>
-            {event.description || "No description available."}
-          </Typography>
-        </Paper>
-      </Box>
+        </>
+      )}
 
       {/* Delete Confirmation Dialog */}
       <Dialog
@@ -592,27 +723,142 @@ const EventDetailPage = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Register Dialog */}
+      {/* Register Dialog with Form */}
       <Dialog
         open={registerDialogOpen}
         onClose={handleRegisterCancel}
         aria-labelledby="register-dialog-title"
-        aria-describedby="register-dialog-description"
+        fullWidth
+        maxWidth="sm"
       >
-        <DialogTitle id="register-dialog-title">Register for Event</DialogTitle>
+        <DialogTitle id="register-dialog-title">
+          Register for {event && event.title}
+        </DialogTitle>
         <DialogContent>
-          <DialogContentText id="register-dialog-description">
-            {event &&
-              `Are you sure you want to register for "${event.title}"? You will receive a confirmation email with event details.`}
+          <DialogContentText paragraph sx={{ mb: 3 }}>
+            Please fill out the form below to register for this event.
           </DialogContentText>
+
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                label="First Name"
+                name="firstName"
+                value={registrationForm.firstName}
+                onChange={handleRegistrationFormChange}
+                fullWidth
+                margin="dense"
+                required
+                error={!!formErrors.firstName}
+                helperText={formErrors.firstName}
+                disabled={isSubmitting}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                label="Last Name"
+                name="lastName"
+                value={registrationForm.lastName}
+                onChange={handleRegistrationFormChange}
+                fullWidth
+                margin="dense"
+                required
+                error={!!formErrors.lastName}
+                helperText={formErrors.lastName}
+                disabled={isSubmitting}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                label="Email"
+                name="email"
+                type="email"
+                value={registrationForm.email}
+                onChange={handleRegistrationFormChange}
+                fullWidth
+                margin="dense"
+                required
+                error={!!formErrors.email}
+                helperText={formErrors.email}
+                disabled={isSubmitting}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                label="Phone Number"
+                name="phoneNumber"
+                value={registrationForm.phoneNumber}
+                onChange={handleRegistrationFormChange}
+                fullWidth
+                margin="dense"
+                disabled={isSubmitting}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <FormControl fullWidth margin="dense">
+                <InputLabel id="ticket-type-label">Ticket Type</InputLabel>
+                <Select
+                  labelId="ticket-type-label"
+                  name="ticketType"
+                  value={registrationForm.ticketType}
+                  onChange={handleRegistrationFormChange}
+                  label="Ticket Type"
+                  disabled={isSubmitting}
+                >
+                  <MenuItem value="STANDARD">Standard</MenuItem>
+                  <MenuItem value="VIP">VIP</MenuItem>
+                  <MenuItem value="EARLY_BIRD">Early Bird</MenuItem>
+                  <MenuItem value="GROUP">Group</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                label="Notes or Special Requirements"
+                name="notes"
+                value={registrationForm.notes}
+                onChange={handleRegistrationFormChange}
+                fullWidth
+                multiline
+                rows={3}
+                margin="dense"
+                disabled={isSubmitting}
+              />
+            </Grid>
+          </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleRegisterCancel}>Cancel</Button>
-          <Button onClick={handleRegisterConfirm} color="primary" autoFocus>
-            Register
+          <Button onClick={handleRegisterCancel} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleRegisterConfirm}
+            color="primary"
+            variant="contained"
+            disabled={isSubmitting}
+            startIcon={isSubmitting ? <CircularProgress size={24} /> : null}
+          >
+            {isSubmitting ? "Processing..." : "Complete Registration"}
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Success/Error Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={handleSnackbarClose}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };

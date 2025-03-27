@@ -12,7 +12,7 @@ import MainLayout from "./components/layouts/MainLayout";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
-import DashboardPage from "./pages/DashboardPage";
+import DashboardPage from "./pages/DashboardPage.jsx";
 import NotFoundPage from "./pages/NotFoundPage";
 import CreateEventPage from "./pages/CreateEventPage";
 import EventDetailPage from "./pages/EventDetailPage";
@@ -21,6 +21,11 @@ import VendorsPage from "./pages/VendorsPage";
 import VendorDetailsPage from "./pages/VendorDetailsPage";
 import ProfilePage from "./pages/ProfilePage";
 import EventsPage from "./pages/EventsPage";
+import AttendeesPage from "./pages/AttendeesPage";
+import RegistrationsPage from "./pages/RegistrationsPage";
+import AttendeeDetailPage from "./pages/AttendeeDetailPage";
+import RegistrationDetailPage from "./pages/RegistrationDetailPage";
+import EditRegistrationPage from "./pages/EditRegistrationPage";
 
 // Auth
 import { checkAuth } from "./store/authSlice";
@@ -59,6 +64,22 @@ function App() {
         <Route path="profile" element={<ProfilePage />} />
         <Route path="events/create" element={<CreateEventPage />} />
         <Route path="events/edit/:id" element={<EditEventPage />} />
+
+        {/* Attendee Management Routes */}
+        <Route path="attendees" element={<AttendeesPage />} />
+        <Route
+          path="attendees/edit/:id"
+          element={<AttendeeDetailPage edit={true} />}
+        />
+        <Route path="attendees/:id" element={<AttendeeDetailPage />} />
+
+        {/* Registration Management Routes */}
+        <Route path="registrations" element={<RegistrationsPage />} />
+        <Route path="registrations/:id" element={<RegistrationDetailPage />} />
+        <Route
+          path="registrations/edit/:id"
+          element={<EditRegistrationPage />}
+        />
 
         {/* 404 Page */}
         <Route path="*" element={<NotFoundPage />} />

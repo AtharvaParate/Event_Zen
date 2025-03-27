@@ -150,6 +150,30 @@ const Sidebar = ({ mobileOpen, onDrawerToggle }) => {
                 <ListItemText primary="Profile" />
               </ListItemButton>
             </ListItem>
+            <ListItem disablePadding>
+              <ListItemButton
+                component={RouterLink}
+                to="/attendees"
+                selected={isSelected("/attendees")}
+              >
+                <ListItemIcon>
+                  <PeopleIcon />
+                </ListItemIcon>
+                <ListItemText primary="Attendees" />
+              </ListItemButton>
+            </ListItem>
+            <ListItem disablePadding>
+              <ListItemButton
+                component={RouterLink}
+                to="/registrations"
+                selected={isSelected("/registrations")}
+              >
+                <ListItemIcon>
+                  <EventIcon />
+                </ListItemIcon>
+                <ListItemText primary="Registrations" />
+              </ListItemButton>
+            </ListItem>
           </>
         ) : (
           <>

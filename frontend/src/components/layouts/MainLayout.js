@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
-import { Box, CssBaseline, Snackbar, Container } from "@mui/material";
+import { Box, CssBaseline, Snackbar } from "@mui/material";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 
 import Header from "./Header";

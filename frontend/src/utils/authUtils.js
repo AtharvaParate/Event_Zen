@@ -81,7 +81,8 @@ export const isOrganizer = () => {
   return hasRole("organizer");
 };
 
-export default {
+// Create a named variable for the export
+const authUtils = {
   setToken,
   getToken,
   clearToken,
@@ -92,3 +93,5 @@ export default {
   isAdmin,
   isOrganizer,
 };
+
+export default authUtils;
