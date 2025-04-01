@@ -33,3 +33,12 @@ logging:
     com.eventzen: DEBUG
     org.springframework: INFO
     org.hibernate: ERROR
+
+# SpringDoc OpenAPI Configuration
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+  packages-to-scan: com.eventzen.budgetservice.controller

@@ -56,6 +56,17 @@
             <scope>runtime</scope>
             <optional>true</optional>
         </dependency>
+        <!-- SpringDoc OpenAPI (Swagger) -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-ui</artifactId>
+            <version>1.6.12</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-webmvc-core</artifactId>
+            <version>1.6.12</version>
+        </dependency>
     </dependencies>
     <dependencyManagement>
         <dependencies>
