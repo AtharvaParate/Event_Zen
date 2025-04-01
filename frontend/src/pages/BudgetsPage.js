@@ -40,6 +40,8 @@ import {
   deleteBudget,
   createBudget,
   updateBudget,
+  getAllBudgets,
+  deleteBudgetWithRetry,
 } from "../api/budgetApi";
 import { fetchEvents } from "../api/eventApi";
 import BudgetForm from "../components/BudgetForm";
@@ -213,6 +215,7 @@ const BudgetsPage = () => {
   const [deleteInProgress, setDeleteInProgress] = useState(false);
   const [deletedBudgetIds, setDeletedBudgetIds] = useState([]);
   const [budgetToEdit, setBudgetToEdit] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
 
   // Create a ref to track the last fetch time (outside the callback)
   const lastFetchTimeRef = useRef(0);
@@ -578,7 +581,7 @@ const BudgetsPage = () => {
       setDeletedBudgetIds((prev) => [...prev, budgetId]);
 
       // Then call the API
-      const result = await deleteBudget(budgetId);
+      const result = await deleteBudgetWithRetry(budgetId);
       console.log("Delete budget API response:", result);
 
       setSnackbar({

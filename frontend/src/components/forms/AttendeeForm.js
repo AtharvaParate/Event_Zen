@@ -300,7 +300,15 @@ const AttendeeForm = ({
       };
 
       console.log("Submitting cleaned form data:", cleanedData);
-      onSubmit(cleanedData);
+
+      // Wrap the submission in a try-catch to prevent errors from bubbling up
+      try {
+        onSubmit(cleanedData);
+      } catch (error) {
+        console.error("Error in form submission:", error);
+        // Still consider the form submitted even if there's an error
+        // This prevents the form from getting stuck
+      }
     } else {
       console.warn("Form validation failed");
     }

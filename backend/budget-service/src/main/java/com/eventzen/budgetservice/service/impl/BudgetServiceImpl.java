@@ -11,6 +11,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +41,14 @@ public class BudgetServiceImpl implements BudgetService {
                 .stream()
                 .map(BudgetDTO::fromEntity)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Cacheable(value = "allBudgetsPaginatedCache", key = "#pageable.pageNumber + '-' + #pageable.pageSize")
+    public Page<BudgetDTO> getAllBudgetsPaginated(Pageable pageable) {
+        logger.debug("Getting paginated budgets: page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
+        return budgetRepository.findAll(pageable)
+                .map(BudgetDTO::fromEntity);
     }
 
     @Override

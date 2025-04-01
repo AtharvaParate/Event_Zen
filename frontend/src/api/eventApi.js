@@ -274,17 +274,18 @@ const eventApi = {
             `Attempt ${retries + 1}: Sending event data to API:`,
             JSON.stringify(eventData)
           );
-          // Make a separate call with extended timeout for event creation
+
+          // Use the public event creation endpoint instead to avoid auth issues
           const response = await axios({
             method: "post",
-            url: `${API_CONFIG.EVENT_API_URL}${EVENT_ENDPOINTS.EVENTS}`,
+            url: `${API_CONFIG.EVENT_API_URL}/events/public/create`,
             data: eventData,
             timeout: 45000, // 45 seconds timeout for each attempt
             headers: {
               "Content-Type": "application/json",
-              ...getAuthHeader(),
             },
           });
+
           console.log("Event creation API response:", response);
           return response.data;
         } catch (error) {

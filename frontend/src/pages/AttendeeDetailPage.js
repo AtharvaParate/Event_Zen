@@ -272,10 +272,9 @@ const AttendeeDetailPage = ({ edit = false }) => {
         "success"
       );
 
-      // Navigate back to detail view
-      setTimeout(() => {
-        navigate(`/attendees/${id}`);
-      }, 1000); // Short delay to allow the user to see the success message
+      // Force navigation immediately to the detail view
+      console.log(`Navigating to attendee detail page: /attendees/${id}`);
+      navigate(`/attendees/${id}`, { replace: true });
     } catch (err) {
       console.error("Error updating attendee:", err);
       setError(`Failed to update attendee: ${err.message || "Unknown error"}`);
@@ -285,10 +284,10 @@ const AttendeeDetailPage = ({ edit = false }) => {
       if (process.env.NODE_ENV === "development") {
         console.warn("Using mock update in development mode");
         showMessage("Development mode: Attendee mock updated", "warning");
-
-        setTimeout(() => {
-          navigate(`/attendees/${id}`);
-        }, 1500);
+        
+        // Force navigation to detail view
+        console.log(`Navigating to attendee detail page: /attendees/${id}`);
+        navigate(`/attendees/${id}`, { replace: true });
       }
     } finally {
       setFormSubmitting(false);

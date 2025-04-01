@@ -2,12 +2,13 @@ import axios from "./axiosConfig";
 // eslint-disable-next-line no-unused-vars
 import { axiosInstance as axios1 } from "./axiosConfig";
 import { createRegistration } from "./registrationApi";
+import { API_CONFIG, getAuthHeader } from "../config/apiConfig";
 
 // Base URLs for the attendee service
 const ATTENDEE_API_URL = "/attendees";
 const REGISTRATION_API_URL = "/registrations";
 
-// Mock attendees for development 
+// Mock attendees for development
 let MOCK_ATTENDEES = [
   {
     id: "mock-1",
@@ -17,7 +18,7 @@ let MOCK_ATTENDEES = [
     phoneNumber: "123-456-7890",
     status: "REGISTERED",
     registrationIds: ["reg-1", "reg-2"],
-    createdAt: "2023-01-01T12:00:00Z"
+    createdAt: "2023-01-01T12:00:00Z",
   },
   {
     id: "mock-2",
@@ -27,7 +28,7 @@ let MOCK_ATTENDEES = [
     phoneNumber: "555-123-4567",
     status: "CHECKED_IN",
     registrationIds: ["reg-3"],
-    createdAt: "2023-01-02T12:00:00Z"
+    createdAt: "2023-01-02T12:00:00Z",
   },
   {
     id: "mock-3",
@@ -37,20 +38,25 @@ let MOCK_ATTENDEES = [
     phoneNumber: "444-555-6666",
     status: "CANCELLED",
     registrationIds: ["reg-4"],
-    createdAt: "2023-01-03T12:00:00Z"
-  }
+    createdAt: "2023-01-03T12:00:00Z",
+  },
 ];
 
 // Helper function to check if we should use mock data
 const shouldUseMockData = () => {
-  return process.env.NODE_ENV === "development" || process.env.REACT_APP_USE_MOCK_DATA === "true";
+  return (
+    process.env.NODE_ENV === "development" ||
+    process.env.REACT_APP_USE_MOCK_DATA === "true"
+  );
 };
 
 // Attendee API methods
 export const fetchAttendees = async (page = 0, size = 10) => {
   try {
     console.log(`Fetching attendees: page=${page}, size=${size}`);
-    const response = await axios.get(`${ATTENDEE_API_URL}?page=${page}&size=${size}`);
+    const response = await axios.get(
+      `${ATTENDEE_API_URL}?page=${page}&size=${size}`
+    );
     console.log("Attendees fetched successfully:", response.data);
     return response.data;
   } catch (error) {
@@ -59,12 +65,12 @@ export const fetchAttendees = async (page = 0, size = 10) => {
     // For development, return mock data if the API fails
     if (shouldUseMockData()) {
       console.warn("Returning mock attendee data for development");
-      
+
       // Return paginated mock data
       const start = page * size;
       const end = start + size;
       const paginatedAttendees = MOCK_ATTENDEES.slice(start, end);
-      
+
       return {
         content: paginatedAttendees,
         totalElements: MOCK_ATTENDEES.length,
@@ -72,7 +78,7 @@ export const fetchAttendees = async (page = 0, size = 10) => {
         size: size,
         number: page,
         first: page === 0,
-        last: (page + 1) * size >= MOCK_ATTENDEES.length
+        last: (page + 1) * size >= MOCK_ATTENDEES.length,
       };
     }
 
@@ -209,7 +215,7 @@ export const createAttendee = async (attendeeData) => {
         ...attendeeData,
         status: attendeeData.status || "REGISTERED",
         registrationIds: [],
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       };
 
       // Add to mock attendees list for consistent state management
@@ -227,7 +233,17 @@ export const createAttendee = async (attendeeData) => {
 export const updateAttendee = async (id, attendeeData) => {
   try {
     console.log(`Updating attendee ${id} with data:`, attendeeData);
-    const response = await axios.put(`${ATTENDEE_API_URL}/${id}`, attendeeData);
+    const response = await axios.put(
+      `${ATTENDEE_API_URL}/${id}`,
+      attendeeData,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        timeout: 10000,
+      }
+    );
     console.log(`Attendee ${id} updated successfully:`, response.data);
     return response.data;
   } catch (error) {
@@ -238,26 +254,26 @@ export const updateAttendee = async (id, attendeeData) => {
       console.warn(`Updating mock attendee for ID ${id}`);
 
       // Update in the mock data array
-      const attendeeIndex = MOCK_ATTENDEES.findIndex(a => a.id === id);
+      const attendeeIndex = MOCK_ATTENDEES.findIndex((a) => a.id === id);
       if (attendeeIndex !== -1) {
         const updatedAttendee = {
           ...MOCK_ATTENDEES[attendeeIndex],
           ...attendeeData,
           id: id, // Ensure ID stays the same
-          updatedAt: new Date().toISOString()
+          updatedAt: new Date().toISOString(),
         };
-        
+
         MOCK_ATTENDEES[attendeeIndex] = updatedAttendee;
         console.log("Mock attendee updated:", updatedAttendee);
         console.log("Updated mock attendees list:", MOCK_ATTENDEES);
-        
+
         return updatedAttendee;
       } else {
         console.warn(`No mock attendee found with ID: ${id}`);
         return {
           id: id,
           ...attendeeData,
-          updatedAt: new Date().toISOString()
+          updatedAt: new Date().toISOString(),
         };
       }
     }
@@ -319,11 +335,11 @@ export const deleteAttendee = async (id) => {
     // For development, handle deletion in mock data
     if (shouldUseMockData()) {
       console.warn(`Deleting mock attendee for ID ${id}`);
-      
+
       // Remove from mock data array
       const initialLength = MOCK_ATTENDEES.length;
-      MOCK_ATTENDEES = MOCK_ATTENDEES.filter(a => a.id !== id);
-      
+      MOCK_ATTENDEES = MOCK_ATTENDEES.filter((a) => a.id !== id);
+
       if (MOCK_ATTENDEES.length < initialLength) {
         console.log(`Mock attendee with ID ${id} deleted successfully`);
         console.log("Updated mock attendees list:", MOCK_ATTENDEES);

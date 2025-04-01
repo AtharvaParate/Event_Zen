@@ -182,153 +182,100 @@ export const fetchBudgetByEventId = async (eventId) => {
 
 // Create new budget
 export const createBudget = async (budgetData) => {
-  let retries = 0;
-  const maxRetries = 3;
-
-  const tryCreate = async () => {
-    try {
-      console.log(
-        `Attempt ${retries + 1}: Creating budget with data:`,
-        budgetData
-      );
-      const response = await budgetAxios.post(
-        BUDGET_ENDPOINTS.BUDGETS,
-        budgetData,
-        { timeout: 30000 } // 30 second timeout for each attempt
-      );
-      console.log("Budget created successfully:", response.data);
-
-      // Clear the cache since we've added a new budget
-      clearBudgetsCache();
-
-      return response.data;
-    } catch (error) {
-      console.error(`Attempt ${retries + 1}: Error creating budget:`, error);
-
-      // Check if it's a timeout or network error
-      if (
-        (error.code === "ECONNABORTED" ||
-          (error.message && error.message.includes("timeout")) ||
-          (error.message && error.message.includes("Network Error"))) &&
-        retries < maxRetries
-      ) {
-        retries++;
-        console.log(`Retrying create operation (${retries}/${maxRetries})...`);
-        // Wait for 2 seconds before retrying
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        return await tryCreate(); // Recursive retry
-      }
-
-      throw error;
+  try {
+    const response = await budgetAxios.post("/budgets", budgetData, {
+      timeout: 5000,
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error creating budget:", error);
+    if (error.code === "ECONNABORTED") {
+      throw new Error("Request timed out. Please try again.");
     }
-  };
-
-  return tryCreate();
+    if (error.response?.status === 401) {
+      throw new Error("Session expired. Please log in again.");
+    }
+    throw new Error(error.response?.data?.message || "Failed to create budget");
+  }
 };
 
 // Update budget
 export const updateBudget = async (id, budgetData) => {
   try {
-    console.log(`Updating budget ${id} with data:`, budgetData);
-    const response = await budgetAxios.put(
-      BUDGET_ENDPOINTS.BUDGET_BY_ID(id),
-      budgetData
-    );
-    console.log(`Budget ${id} updated successfully:`, response.data);
-
-    // Clear the cache since we've updated a budget
-    clearBudgetsCache();
-
+    const response = await budgetAxios.put(`/budgets/${id}`, budgetData, {
+      timeout: 5000,
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+    });
     return response.data;
   } catch (error) {
-    console.error(`Error updating budget with ID ${id}:`, error);
-    throw error;
+    console.error("Error updating budget:", error);
+    if (error.code === "ECONNABORTED") {
+      throw new Error("Request timed out. Please try again.");
+    }
+    if (error.response?.status === 401) {
+      throw new Error("Session expired. Please log in again.");
+    }
+    if (error.response?.status === 404) {
+      throw new Error("Budget not found");
+    }
+    throw new Error(error.response?.data?.message || "Failed to update budget");
   }
 };
 
-// Delete budget with retry mechanism
+// Delete budget with retry logic
 export const deleteBudgetWithRetry = async (id, maxRetries = 3) => {
-  let retries = 0;
+  if (!id) {
+    throw new Error("Invalid budget ID");
+  }
 
-  const tryDelete = async () => {
+  let lastError;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`Attempt ${retries + 1}: Deleting budget with ID: ${id}`);
-      // Use a different approach for the delete request
-      const response = await axios({
-        method: "delete",
-        url: `${API_CONFIG.BUDGET_API_URL}${BUDGET_ENDPOINTS.BUDGET_BY_ID(id)}`,
-        timeout: 30000,
+      const response = await budgetAxios.delete(`/budgets/${id}`, {
+        timeout: 5000,
         headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeader(),
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
       });
-
-      console.log(
-        `Budget ${id} deleted successfully:`,
-        response.status,
-        response.data
-      );
-      return { success: true, data: response.data };
+      return response.data;
     } catch (error) {
-      console.error(
-        `Attempt ${retries + 1}: Error deleting budget with ID ${id}:`,
-        error
+      console.error(`Delete attempt ${attempt} failed:`, error);
+      lastError = error;
+
+      // Don't retry on these errors
+      if (error.response?.status === 401) {
+        throw new Error("Session expired. Please log in again.");
+      }
+      if (error.response?.status === 404) {
+        throw new Error("Budget not found");
+      }
+
+      // Only retry on server errors
+      if (error.response?.status >= 500) {
+        if (attempt < maxRetries) {
+          await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+          continue;
+        }
+      }
+
+      // For other errors, throw immediately
+      if (error.code === "ECONNABORTED") {
+        throw new Error("Request timed out. Please try again.");
+      }
+      throw new Error(
+        error.response?.data?.message || "Failed to delete budget"
       );
-
-      // Handle specific error cases
-      if (error.response) {
-        const status = error.response.status;
-        console.error(
-          `Server responded with status: ${status}`,
-          error.response.data
-        );
-
-        // If the budget doesn't exist, consider it successfully deleted
-        if (status === 404) {
-          console.log("Budget not found - already deleted or never existed");
-          return { success: true, notFound: true };
-        }
-
-        // Handle authentication errors specifically
-        if (status === 401 || status === 403) {
-          console.error("Authentication error when trying to delete budget");
-          throw error; // Don't retry auth errors
-        }
-
-        // Handle other server errors
-        if (status >= 500) {
-          if (retries < maxRetries) {
-            retries++;
-            console.log(
-              `Retrying delete operation (${retries}/${maxRetries}) due to server error...`
-            );
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-            return await tryDelete();
-          }
-        }
-      }
-
-      // Check if it's a timeout or network error
-      if (
-        (error.code === "ECONNABORTED" ||
-          (error.message &&
-            (error.message.includes("timeout") ||
-              error.message.includes("Network Error")))) &&
-        retries < maxRetries
-      ) {
-        retries++;
-        console.log(`Retrying delete operation (${retries}/${maxRetries})...`);
-        // Wait for 2 seconds before retrying
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        return await tryDelete(); // Recursive retry
-      }
-
-      throw error;
     }
-  };
+  }
 
-  return tryDelete();
+  throw (
+    lastError || new Error("Failed to delete budget after multiple attempts")
+  );
 };
 
 // Expense-related functions
@@ -585,5 +532,52 @@ export const deleteBudget = async (id) => {
     console.error(`Final error deleting budget ${id}:`, error);
     // If we've reached here, all retries have failed
     throw error;
+  }
+};
+
+// Get all budgets
+export const getAllBudgets = async () => {
+  try {
+    const response = await budgetAxios.get("/budgets", {
+      timeout: 5000, // 5 second timeout
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching budgets:", error);
+    if (error.code === "ECONNABORTED") {
+      throw new Error("Request timed out. Please try again.");
+    }
+    if (error.response?.status === 401) {
+      throw new Error("Session expired. Please log in again.");
+    }
+    throw new Error(error.response?.data?.message || "Failed to fetch budgets");
+  }
+};
+
+// Get budget by ID
+export const getBudgetById = async (id) => {
+  try {
+    const response = await budgetAxios.get(`/budgets/${id}`, {
+      timeout: 5000,
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching budget:", error);
+    if (error.code === "ECONNABORTED") {
+      throw new Error("Request timed out. Please try again.");
+    }
+    if (error.response?.status === 401) {
+      throw new Error("Session expired. Please log in again.");
+    }
+    if (error.response?.status === 404) {
+      throw new Error("Budget not found");
+    }
+    throw new Error(error.response?.data?.message || "Failed to fetch budget");
   }
 };
