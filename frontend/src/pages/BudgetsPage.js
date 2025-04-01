@@ -23,6 +23,8 @@ import {
   Snackbar,
   Alert,
   DialogContentText,
+  InputAdornment,
+  Pagination,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -33,11 +35,160 @@ import {
   AttachMoney as MoneyIcon,
   ShowChart as ChartIcon,
 } from "@mui/icons-material";
-import { fetchBudgets, deleteBudget, createBudget } from "../api/budgetApi";
+import {
+  fetchBudgets,
+  deleteBudget,
+  createBudget,
+  updateBudget,
+} from "../api/budgetApi";
 import { fetchEvents } from "../api/eventApi";
 import BudgetForm from "../components/BudgetForm";
 import { API_CONFIG } from "../config/apiConfig";
 import ErrorDisplay from "../components/ErrorDisplay";
+import ConfirmDialog from "../components/common/ConfirmDialog";
+import { formatCurrency } from "../utils/formatters";
+
+// Create a BudgetCard component for displaying budget information
+const BudgetCard = ({ budget, event, onEdit, onView, onDelete }) => {
+  // Calculate budget progress
+  const calculateBudgetProgress = (budget) => {
+    if (budget.totalBudget <= 0) return 0;
+    return Math.min(100, (budget.currentExpenses / budget.totalBudget) * 100);
+  };
+
+  // Get appropriate color for progress bar based on percentage
+  const getProgressColor = (progress) => {
+    if (progress < 50) return "success";
+    if (progress < 80) return "warning";
+    return "error";
+  };
+
+  // Get event name or placeholder
+  const getEventName = () => {
+    return event ? event.title : "No associated event";
+  };
+
+  return (
+    <Card
+      elevation={3}
+      sx={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        "&:hover": {
+          transform: "translateY(-4px)",
+          boxShadow: 6,
+          transition: "all 0.3s",
+        },
+      }}
+    >
+      <CardContent sx={{ flexGrow: 1 }}>
+        <Typography variant="h5" component="div" gutterBottom noWrap>
+          {budget.name}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" gutterBottom>
+          Event: {getEventName()}
+        </Typography>
+
+        <Box sx={{ mt: 2, mb: 1 }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              mb: 0.5,
+            }}
+          >
+            <Typography variant="body2">Budget Progress:</Typography>
+            <Typography variant="body2">
+              {calculateBudgetProgress(budget).toFixed(0)}%
+            </Typography>
+          </Box>
+          <LinearProgress
+            variant="determinate"
+            value={calculateBudgetProgress(budget)}
+            color={getProgressColor(calculateBudgetProgress(budget))}
+            sx={{ height: 10, borderRadius: 5 }}
+          />
+        </Box>
+
+        <Grid container spacing={2} sx={{ mt: 1 }}>
+          <Grid item xs={6}>
+            <Typography variant="subtitle2">Total Budget:</Typography>
+            <Typography variant="h6">
+              {formatCurrency(budget.totalBudget)}
+            </Typography>
+          </Grid>
+          <Grid item xs={6}>
+            <Typography variant="subtitle2">Expenses:</Typography>
+            <Typography
+              variant="h6"
+              color={
+                budget.currentExpenses > budget.totalBudget
+                  ? "error.main"
+                  : "text.primary"
+              }
+            >
+              {formatCurrency(budget.currentExpenses)}
+            </Typography>
+          </Grid>
+        </Grid>
+
+        <Box sx={{ mt: 2 }}>
+          <Typography variant="subtitle2">Income:</Typography>
+          <Typography variant="h6" color="success.main">
+            {formatCurrency(budget.currentIncome)}
+          </Typography>
+        </Box>
+
+        <Box sx={{ mt: 2 }}>
+          <Typography variant="subtitle2">Categories:</Typography>
+          <Box
+            sx={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 0.5,
+              mt: 0.5,
+            }}
+          >
+            {budget.categories &&
+              budget.categories.map((category, index) => (
+                <Chip
+                  key={index}
+                  label={category}
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                  sx={{ marginRight: 0.5, marginBottom: 0.5 }}
+                />
+              ))}
+          </Box>
+        </Box>
+      </CardContent>
+
+      <CardActions sx={{ p: 2, pt: 0 }}>
+        <Button size="small" onClick={onView} startIcon={<ChartIcon />}>
+          View Details
+        </Button>
+        <Button
+          size="small"
+          color="primary"
+          onClick={onEdit}
+          startIcon={<EditIcon />}
+        >
+          Edit
+        </Button>
+        <Button
+          size="small"
+          color="error"
+          onClick={onDelete}
+          startIcon={<DeleteIcon />}
+        >
+          Delete
+        </Button>
+      </CardActions>
+    </Card>
+  );
+};
 
 const BudgetsPage = () => {
   const navigate = useNavigate();
@@ -61,6 +212,10 @@ const BudgetsPage = () => {
   });
   const [deleteInProgress, setDeleteInProgress] = useState(false);
   const [deletedBudgetIds, setDeletedBudgetIds] = useState([]);
+  const [budgetToEdit, setBudgetToEdit] = useState(null);
+
+  // Create a ref to track the last fetch time (outside the callback)
+  const lastFetchTimeRef = useRef(0);
 
   // Load budgets and events - wrapped in useCallback to use as dependency in useEffect
   const loadData = useCallback(async () => {
@@ -75,16 +230,15 @@ const BudgetsPage = () => {
 
     try {
       // Determine if we should force refresh based on how much time has passed since last fetch
-      const lastFetchTime = useRef(0);
       const now = Date.now();
-      const forceRefresh = now - lastFetchTime.current > 300000; // Force refresh if it's been over 5 minutes
+      const forceRefresh = now - lastFetchTimeRef.current > 300000; // Force refresh if it's been over 5 minutes
 
       // Only log at debug level to reduce console noise
       console.debug("BudgetsPage: Fetching budgets...");
 
       // Use the cache-aware fetchBudgets function with current parameters
       const budgetsData = await fetchBudgets(page, 10, forceRefresh);
-      lastFetchTime.current = now;
+      lastFetchTimeRef.current = now;
 
       if (!budgetsData) {
         console.error("BudgetsPage: budgetsData is null or undefined");
@@ -248,121 +402,85 @@ const BudgetsPage = () => {
     }
   };
 
+  // Handle search input change
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+  };
+
+  // Handle page change
+  const handlePageChange = (event, value) => {
+    setPage(value - 1); // MUI Pagination is 1-indexed, our API is 0-indexed
+  };
+
   // Open budget form dialog
   const handleOpenDialog = () => {
+    setBudgetToEdit(null); // Reset edit state
     setOpenDialog(true);
   };
 
   // Close budget form dialog
   const handleCloseDialog = () => {
+    setBudgetToEdit(null);
     setOpenDialog(false);
   };
 
-  // View budget details
-  const handleViewBudget = (budgetId) => {
-    navigate(`/budgets/${budgetId}`);
-  };
-
-  // Handle edit budget
-  const handleEditBudget = (budgetId) => {
-    navigate(`/budgets/edit/${budgetId}`);
-  };
-
-  // Open delete confirmation dialog
-  const handleDeleteConfirm = (budgetId) => {
-    setDeleteConfirmDialog({ open: true, budgetId });
-  };
-
-  // Close delete confirmation dialog
-  const handleCloseDeleteConfirm = () => {
-    setDeleteConfirmDialog({ open: false, budgetId: null });
-  };
-
-  // Handle delete budget - update to add the deleted budget ID to our tracking array
-  const handleDeleteBudget = async () => {
-    if (!deleteConfirmDialog.budgetId) return;
-
-    const budgetIdToDelete = deleteConfirmDialog.budgetId;
-    console.log(`Starting deletion process for budget ID: ${budgetIdToDelete}`);
-
-    setLoading(true);
-    setDeleteInProgress(true);
-
+  // Handle form submission (both create and edit)
+  const handleSaveBudget = async (budgetData) => {
     try {
-      // First remove the budget from UI immediately for better UX
-      setBudgets((prevBudgets) =>
-        prevBudgets.filter((budget) => budget.id !== budgetIdToDelete)
-      );
-
-      // Also add to our deleted IDs tracking to prevent reappearance on refresh
-      setDeletedBudgetIds((prev) => [...prev, budgetIdToDelete]);
-
-      // Then call the API
-      const result = await deleteBudget(budgetIdToDelete);
-      console.log("Delete budget API response:", result);
-
+      if (budgetToEdit) {
+        // Update existing budget
+        await updateBudget(budgetToEdit.id, budgetData);
+        setSnackbar({
+          open: true,
+          message: "Budget updated successfully",
+          severity: "success",
+        });
+      } else {
+        // Create new budget
+        await createBudget(budgetData);
+        setSnackbar({
+          open: true,
+          message: "Budget created successfully",
+          severity: "success",
+        });
+      }
+      handleCloseDialog();
+      loadData(); // Refresh the list
+    } catch (error) {
+      console.error("Error saving budget:", error);
       setSnackbar({
         open: true,
-        message: result.message || "Budget deleted successfully",
-        severity: "success",
-      });
-
-      // No need to filter budgets again since we did it optimistically
-
-      // Refresh data in background after a short delay
-      setTimeout(() => {
-        // No need to call handleRefresh since it might bring the budget back
-        // due to eventual consistency in the backend
-        // We rely on our deletedBudgetIds filtering
-      }, 1000);
-    } catch (err) {
-      console.error("Error deleting budget:", err);
-
-      // Handle the error based on its type
-      let errorMessage = "Failed to delete budget";
-      let shouldRestoreBudget = true;
-
-      if (err.response) {
-        const status = err.response.status;
-        if (status === 403 || status === 401) {
-          errorMessage = "You don't have permission to delete this budget";
-        } else if (status === 404) {
-          errorMessage = "Budget not found - it may have been already deleted";
-          shouldRestoreBudget = false; // No need to restore if it's already gone
-        } else if (status >= 500) {
-          errorMessage = "Server error occurred while deleting budget";
-        }
-      } else if (err.request) {
-        errorMessage = "Network error - please check your connection";
-      } else if (err.message) {
-        errorMessage = `Error: ${err.message}`;
-      }
-
-      // Remove from deleted IDs if we need to restore it (only for non-404 errors)
-      if (shouldRestoreBudget) {
-        setDeletedBudgetIds((prev) =>
-          prev.filter((id) => id !== budgetIdToDelete)
-        );
-
-        // Add the budget back to the list if deletion failed
-        loadData(); // Reload budgets to restore the one we optimistically removed
-      }
-
-      setSnackbar({
-        open: true,
-        message: errorMessage,
+        message: `Failed to save budget: ${error.message}`,
         severity: "error",
       });
-    } finally {
-      setLoading(false);
-      setDeleteInProgress(false);
-      setDeleteConfirmDialog({ open: false, budgetId: null });
     }
   };
 
+  // Handle edit button click
+  const handleEditBudget = (id) => {
+    const budgetToEdit = budgets.find((b) => b.id === id);
+    if (budgetToEdit) {
+      setBudgetToEdit(budgetToEdit);
+      setOpenDialog(true);
+    }
+  };
+
+  // Handle view details button click
+  const handleViewBudget = (id) => {
+    navigate(`/budgets/${id}`);
+  };
+
+  // Open delete confirmation dialog
+  const handleConfirmDeleteBudget = (id) => {
+    setDeleteConfirmDialog({ open: true, budgetId: id });
+  };
+
   // Close snackbar
-  const handleCloseSnackbar = () => {
-    setSnackbar({ ...snackbar, open: false });
+  const handleSnackbarClose = (event, reason) => {
+    if (reason === "clickaway") {
+      return;
+    }
+    setSnackbar((prev) => ({ ...prev, open: false }));
   };
 
   // Get event name from ID
@@ -387,14 +505,6 @@ const BudgetsPage = () => {
     return "primary";
   };
 
-  // Format currency
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount);
-  };
-
   // Filter budgets based on search term
   const filteredBudgets = budgets.filter(
     (budget) =>
@@ -404,30 +514,6 @@ const BudgetsPage = () => {
           .toLowerCase()
           .includes(searchTerm.toLowerCase()))
   );
-
-  // Handle saving a new budget
-  const handleSaveBudget = async (budgetData) => {
-    try {
-      setLoading(true);
-      await createBudget(budgetData);
-      setOpenDialog(false);
-      setSnackbar({
-        open: true,
-        message: "Budget created successfully",
-        severity: "success",
-      });
-      handleRefresh();
-    } catch (error) {
-      console.error("Error creating budget:", error);
-      setSnackbar({
-        open: true,
-        message: "Failed to create budget",
-        severity: "error",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Modify the component to include a virtualized list for better rendering performance with many budgets
   const renderBudgetList = () => {
@@ -466,7 +552,7 @@ const BudgetsPage = () => {
                 event={events.find((e) => e.id === budget.eventId)}
                 onEdit={() => handleEditBudget(budget.id)}
                 onView={() => handleViewBudget(budget.id)}
-                onDelete={() => handleDeleteConfirm(budget.id)}
+                onDelete={() => handleConfirmDeleteBudget(budget.id)}
               />
             </Grid>
           ))}
@@ -475,114 +561,182 @@ const BudgetsPage = () => {
     );
   };
 
+  // Handle delete budget
+  const handleDeleteBudget = async (budgetId) => {
+    if (!budgetId) return;
+
+    console.log(`Starting deletion process for budget ID: ${budgetId}`);
+    setDeleteInProgress(true);
+
+    try {
+      // First remove the budget from UI immediately for better UX
+      setBudgets((prevBudgets) =>
+        prevBudgets.filter((budget) => budget.id !== budgetId)
+      );
+
+      // Also add to our deleted IDs tracking to prevent reappearance on refresh
+      setDeletedBudgetIds((prev) => [...prev, budgetId]);
+
+      // Then call the API
+      const result = await deleteBudget(budgetId);
+      console.log("Delete budget API response:", result);
+
+      setSnackbar({
+        open: true,
+        message: result.message || "Budget deleted successfully",
+        severity: "success",
+      });
+
+      // No need to call handleRefresh since it might bring the budget back
+      // due to eventual consistency in the backend
+      // We rely on our deletedBudgetIds filtering
+    } catch (err) {
+      console.error("Error deleting budget:", err);
+
+      // Handle the error based on its type
+      let errorMessage = "Failed to delete budget";
+      let shouldRestoreBudget = true;
+
+      if (err.response) {
+        const status = err.response.status;
+        if (status === 403 || status === 401) {
+          errorMessage = "You don't have permission to delete this budget";
+        } else if (status === 404) {
+          errorMessage = "Budget not found - it may have been already deleted";
+          shouldRestoreBudget = false; // No need to restore if it's already gone
+        } else if (status >= 500) {
+          errorMessage = "Server error occurred while deleting budget";
+        }
+      } else if (err.request) {
+        errorMessage = "Network error - please check your connection";
+      } else if (err.message) {
+        errorMessage = `Error: ${err.message}`;
+      }
+
+      // Remove from deleted IDs if we need to restore it (only for non-404 errors)
+      if (shouldRestoreBudget) {
+        setDeletedBudgetIds((prev) => prev.filter((id) => id !== budgetId));
+
+        // Add the budget back to the list if deletion failed
+        loadData(); // Reload budgets to restore the one we optimistically removed
+      }
+
+      setSnackbar({
+        open: true,
+        message: errorMessage,
+        severity: "error",
+      });
+    } finally {
+      setDeleteInProgress(false);
+      setDeleteConfirmDialog({ open: false, budgetId: null });
+    }
+  };
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      {/* Header */}
-      <Grid container spacing={3} alignItems="center" sx={{ mb: 3 }}>
-        <Grid item xs>
-          <Typography variant="h4" component="h1" gutterBottom>
-            <MoneyIcon sx={{ mr: 1, verticalAlign: "bottom" }} />
-            Budget Management
-          </Typography>
-        </Grid>
-        <Grid item>
-          <Box sx={{ display: "flex", gap: 2 }}>
-            <TextField
-              size="small"
-              placeholder="Search budgets..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              InputProps={{
-                startAdornment: <SearchIcon color="action" sx={{ mr: 1 }} />,
-              }}
-            />
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={<AddIcon />}
-              onClick={handleOpenDialog}
-            >
-              Create Budget
-            </Button>
-            <IconButton color="primary" onClick={loadData} disabled={loading}>
-              <RefreshIcon />
-            </IconButton>
+      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 4 }}>
+        <Typography variant="h4" component="h1" gutterBottom>
+          <MoneyIcon sx={{ mr: 1, verticalAlign: "bottom" }} />
+          Budget Management
+        </Typography>
+        <Box>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            onClick={handleOpenDialog}
+            sx={{ mr: 1 }}
+          >
+            Create Budget
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<RefreshIcon />}
+            onClick={handleRefresh}
+            disabled={loading}
+          >
+            Refresh
+          </Button>
+        </Box>
+      </Box>
+
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Box sx={{ mb: 2 }}>
+          <TextField
+            label="Search Budgets"
+            variant="outlined"
+            fullWidth
+            value={searchTerm}
+            onChange={handleSearchChange}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+          />
+        </Box>
+
+        {/* Display error message */}
+        {error && !loading && (
+          <Box sx={{ mb: 2 }}>
+            <Alert severity="error">{error}</Alert>
           </Box>
-        </Grid>
-      </Grid>
+        )}
 
-      {/* Loading indicator */}
-      {loading && <LinearProgress sx={{ mb: 3 }} />}
+        {/* Budget cards */}
+        {renderBudgetList()}
 
-      {/* Error message */}
-      {error && <ErrorDisplay message={error} onRetry={loadData} />}
-
-      {/* Budget cards */}
-      {!loading && !error && <Box sx={{ my: 2 }}>{renderBudgetList()}</Box>}
-
-      {/* Pagination controls */}
+        {/* Pagination controls */}
+        {!loading && budgets.length > 0 && (
+          <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
+            <Pagination
+              count={totalPages}
+              page={page + 1}
+              onChange={handlePageChange}
+              color="primary"
+            />
+          </Box>
+        )}
+      </Paper>
 
       {/* Add Budget Dialog */}
-      <Dialog
-        open={openDialog}
-        onClose={handleCloseDialog}
-        fullWidth
-        maxWidth="md"
-        disableRestoreFocus
-      >
-        <DialogTitle>Create New Budget</DialogTitle>
-        <DialogContent dividers>
-          <Box p={1}>
-            <BudgetForm
-              onSave={handleSaveBudget}
-              onCancel={handleCloseDialog}
-              mode="create"
-            />
-          </Box>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={deleteConfirmDialog.open}
-        onClose={!deleteInProgress ? handleCloseDeleteConfirm : undefined}
-        aria-labelledby="delete-dialog-title"
-      >
-        <DialogTitle id="delete-dialog-title">Confirm Delete</DialogTitle>
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md">
+        <DialogTitle>
+          {budgetToEdit ? "Edit Budget" : "Create New Budget"}
+        </DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            Are you sure you want to delete this budget? This action cannot be
-            undone.
-          </DialogContentText>
+          <BudgetForm
+            budget={budgetToEdit}
+            events={events}
+            onSubmit={handleSaveBudget}
+          />
         </DialogContent>
         <DialogActions>
-          <Button
-            onClick={handleCloseDeleteConfirm}
-            disabled={deleteInProgress}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleDeleteBudget}
-            color="error"
-            autoFocus
-            disabled={deleteInProgress}
-            startIcon={deleteInProgress ? <CircularProgress size={20} /> : null}
-          >
-            {deleteInProgress ? "Deleting..." : "Delete"}
-          </Button>
+          <Button onClick={handleCloseDialog}>Cancel</Button>
         </DialogActions>
       </Dialog>
 
-      {/* Notification Snackbar */}
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        open={deleteConfirmDialog.open}
+        title="Delete Budget"
+        content="Are you sure you want to delete this budget? This action cannot be undone."
+        onConfirm={() => handleDeleteBudget(deleteConfirmDialog.budgetId)}
+        onCancel={() => setDeleteConfirmDialog({ open: false, budgetId: null })}
+        isLoading={deleteInProgress}
+      />
+
+      {/* Snackbar for notifications */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
       >
         <Alert
-          onClose={handleCloseSnackbar}
+          onClose={handleSnackbarClose}
           severity={snackbar.severity}
           sx={{ width: "100%" }}
         >
