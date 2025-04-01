@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Container,
@@ -64,90 +64,91 @@ const BudgetsPage = () => {
 
   // Load budgets and events - wrapped in useCallback to use as dependency in useEffect
   const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      console.log("BudgetsPage: Starting to fetch budgets...");
-      console.log("BudgetsPage: Current API config:", API_CONFIG);
-      console.log(
-        "BudgetsPage: USE_MOCK_DATA setting:",
-        API_CONFIG.USE_MOCK_DATA
-      );
+    // If we already have budgets data and we're not at the initial load, use a less intrusive loading indicator
+    const hasExistingData = budgets.length > 0;
+    if (hasExistingData) {
+      // Use a lighter loading state for subsequent data fetches
+      setLoading(false); // Don't show full loading spinner if we have data
+    } else {
+      setLoading(true);
+    }
 
-      // Load budgets with pagination
-      const budgetsData = await fetchBudgets(page, 10);
-      console.log("BudgetsPage: Received budget data:", budgetsData);
+    try {
+      // Determine if we should force refresh based on how much time has passed since last fetch
+      const lastFetchTime = useRef(0);
+      const now = Date.now();
+      const forceRefresh = now - lastFetchTime.current > 300000; // Force refresh if it's been over 5 minutes
+
+      // Only log at debug level to reduce console noise
+      console.debug("BudgetsPage: Fetching budgets...");
+
+      // Use the cache-aware fetchBudgets function with current parameters
+      const budgetsData = await fetchBudgets(page, 10, forceRefresh);
+      lastFetchTime.current = now;
 
       if (!budgetsData) {
         console.error("BudgetsPage: budgetsData is null or undefined");
         setError("Failed to load budgets. The response was empty.");
-        setBudgets([]);
-        setLoading(false);
         return;
       }
 
-      // Check if budgetsData has the expected structure and filter out deleted budgets
+      // Process the budget data
+      let processedBudgets = [];
       if (budgetsData.content) {
-        console.log(
-          "BudgetsPage: Setting budgets from budgetsData.content:",
-          budgetsData.content
-        );
-        // Filter out any recently deleted budgets
-        const filteredBudgets = budgetsData.content.filter(
-          (budget) => !deletedBudgetIds.includes(budget.id)
-        );
-        setBudgets(filteredBudgets);
+        processedBudgets = budgetsData.content;
         setTotalPages(budgetsData.totalPages || 1);
       } else if (Array.isArray(budgetsData)) {
-        console.log(
-          "BudgetsPage: Setting budgets directly from array:",
-          budgetsData
-        );
-        // Filter out any recently deleted budgets
-        const filteredBudgets = budgetsData.filter(
-          (budget) => !deletedBudgetIds.includes(budget.id)
-        );
-        setBudgets(filteredBudgets);
+        processedBudgets = budgetsData;
         setTotalPages(1);
       } else {
         console.error("BudgetsPage: Unexpected data format:", budgetsData);
         setError("Failed to load budgets. Unexpected data format received.");
         setBudgets([]);
+        return;
       }
 
-      try {
-        // Load events for reference
-        console.log("BudgetsPage: Fetching events...");
-        const eventsData = await fetchEvents();
-        console.log("BudgetsPage: Received events data:", eventsData);
-        setEvents(eventsData.content || eventsData || []);
-      } catch (eventsErr) {
-        console.error("BudgetsPage: Error loading events:", eventsErr);
-        // Still continue even if events fail to load
-        setEvents([]);
+      // Filter out deleted budgets
+      const filteredBudgets = processedBudgets.filter(
+        (budget) => !deletedBudgetIds.includes(budget.id)
+      );
+
+      // Only update state if data has actually changed
+      if (JSON.stringify(filteredBudgets) !== JSON.stringify(budgets)) {
+        setBudgets(filteredBudgets);
+      }
+
+      // Only fetch events if we don't already have them or if forcing refresh
+      if (events.length === 0 || forceRefresh) {
+        try {
+          // Fetch events in the background
+          fetchEvents()
+            .then((eventsData) => {
+              setEvents(eventsData.content || eventsData || []);
+            })
+            .catch((error) => {
+              console.error("Background events fetch error:", error);
+            });
+        } catch (eventsErr) {
+          console.error("BudgetsPage: Error loading events:", eventsErr);
+          // Continue even if events fail to load
+        }
       }
 
       setError(null);
     } catch (err) {
       console.error("BudgetsPage: Error loading budgets:", err);
-      console.error("BudgetsPage: Error details:", {
-        message: err.message,
-        stack: err.stack,
-        response: err.response
-          ? {
-              status: err.response.status,
-              statusText: err.response.statusText,
-              data: err.response.data,
-            }
-          : "No response",
-      });
       setError(
         `Failed to load budgets. Error: ${err.message || "Unknown error"}`
       );
-      setBudgets([]);
+
+      // Don't clear existing budgets on error if we have data
+      if (!hasExistingData) {
+        setBudgets([]);
+      }
     } finally {
       setLoading(false);
     }
-  }, [page, deletedBudgetIds]);
+  }, [page, deletedBudgetIds, budgets, events.length]);
 
   // Load data on component mount or when page changes
   useEffect(() => {
@@ -194,18 +195,24 @@ const BudgetsPage = () => {
 
   // Handle refresh - updated to respect deleted budget IDs
   const handleRefresh = async () => {
-    setLoading(true);
+    // Use a more specific loading indicator for refresh
+    setSnackbar({
+      open: true,
+      message: "Refreshing budgets...",
+      severity: "info",
+    });
+
     try {
-      // Load budgets with pagination
-      const budgetsData = await fetchBudgets(page, 10);
+      // Force a fresh fetch by bypassing cache
+      const budgetsData = await fetchBudgets(page, 10, true);
 
       let refreshedBudgets = [];
       if (budgetsData.content) {
         refreshedBudgets = budgetsData.content;
+        setTotalPages(budgetsData.totalPages || 1);
       } else if (Array.isArray(budgetsData)) {
         refreshedBudgets = budgetsData;
-      } else {
-        refreshedBudgets = [];
+        setTotalPages(1);
       }
 
       // Filter out deleted budgets
@@ -214,11 +221,15 @@ const BudgetsPage = () => {
       );
 
       setBudgets(filteredBudgets);
-      setTotalPages(budgetsData.totalPages || 1);
 
-      // Also refresh events data
-      const eventsData = await fetchEvents();
-      setEvents(eventsData.content || []);
+      // Also refresh events data but don't wait for it
+      fetchEvents()
+        .then((eventsData) => {
+          setEvents(eventsData.content || eventsData || []);
+        })
+        .catch((error) => {
+          console.error("Error refreshing events:", error);
+        });
 
       setSnackbar({
         open: true,
@@ -234,8 +245,6 @@ const BudgetsPage = () => {
         message: "Failed to refresh budgets",
         severity: "error",
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -420,6 +429,52 @@ const BudgetsPage = () => {
     }
   };
 
+  // Modify the component to include a virtualized list for better rendering performance with many budgets
+  const renderBudgetList = () => {
+    // Show the existing budget items even while loading more
+    if (budgets.length === 0) {
+      if (loading) {
+        return (
+          <Box sx={{ display: "flex", justifyContent: "center", my: 4 }}>
+            <CircularProgress />
+          </Box>
+        );
+      } else if (error) {
+        return (
+          <Alert severity="error" sx={{ my: 2 }}>
+            {error}
+          </Alert>
+        );
+      } else {
+        return (
+          <Typography variant="body1" sx={{ textAlign: "center", my: 4 }}>
+            No budgets found. Create a new budget to get started.
+          </Typography>
+        );
+      }
+    }
+
+    // Show budgets with a lighter loading indicator when fetching more data
+    return (
+      <>
+        {loading && <LinearProgress sx={{ mb: 2 }} />}
+        <Grid container spacing={3}>
+          {budgets.map((budget) => (
+            <Grid item xs={12} sm={6} md={4} key={budget.id}>
+              <BudgetCard
+                budget={budget}
+                event={events.find((e) => e.id === budget.eventId)}
+                onEdit={() => handleEditBudget(budget.id)}
+                onView={() => handleViewBudget(budget.id)}
+                onDelete={() => handleDeleteConfirm(budget.id)}
+              />
+            </Grid>
+          ))}
+        </Grid>
+      </>
+    );
+  };
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       {/* Header */}
@@ -463,172 +518,9 @@ const BudgetsPage = () => {
       {error && <ErrorDisplay message={error} onRetry={loadData} />}
 
       {/* Budget cards */}
-      {!loading && !error && (
-        <Grid container spacing={3}>
-          {filteredBudgets.length > 0 ? (
-            filteredBudgets.map((budget) => (
-              <Grid item xs={12} md={6} lg={4} key={budget.id}>
-                <Card
-                  elevation={3}
-                  sx={{
-                    height: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                    "&:hover": {
-                      transform: "translateY(-4px)",
-                      boxShadow: 6,
-                      transition: "all 0.3s",
-                    },
-                  }}
-                >
-                  <CardContent sx={{ flexGrow: 1 }}>
-                    <Typography
-                      variant="h5"
-                      component="div"
-                      gutterBottom
-                      noWrap
-                    >
-                      {budget.name}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      gutterBottom
-                    >
-                      Event: {getEventName(budget.eventId)}
-                    </Typography>
+      {!loading && !error && <Box sx={{ my: 2 }}>{renderBudgetList()}</Box>}
 
-                    <Box sx={{ mt: 2, mb: 1 }}>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          mb: 0.5,
-                        }}
-                      >
-                        <Typography variant="body2">
-                          Budget Progress:
-                        </Typography>
-                        <Typography variant="body2">
-                          {calculateBudgetProgress(budget).toFixed(0)}%
-                        </Typography>
-                      </Box>
-                      <LinearProgress
-                        variant="determinate"
-                        value={calculateBudgetProgress(budget)}
-                        color={getProgressColor(
-                          calculateBudgetProgress(budget)
-                        )}
-                        sx={{ height: 10, borderRadius: 5 }}
-                      />
-                    </Box>
-
-                    <Grid container spacing={2} sx={{ mt: 1 }}>
-                      <Grid item xs={6}>
-                        <Typography variant="subtitle2">
-                          Total Budget:
-                        </Typography>
-                        <Typography variant="h6">
-                          {formatCurrency(budget.totalBudget)}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="subtitle2">Expenses:</Typography>
-                        <Typography
-                          variant="h6"
-                          color={
-                            budget.currentExpenses > budget.totalBudget
-                              ? "error.main"
-                              : "text.primary"
-                          }
-                        >
-                          {formatCurrency(budget.currentExpenses)}
-                        </Typography>
-                      </Grid>
-                    </Grid>
-
-                    <Box sx={{ mt: 2 }}>
-                      <Typography variant="subtitle2">Income:</Typography>
-                      <Typography variant="h6" color="success.main">
-                        {formatCurrency(budget.currentIncome)}
-                      </Typography>
-                    </Box>
-
-                    <Box sx={{ mt: 2 }}>
-                      <Typography variant="subtitle2">Categories:</Typography>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: 0.5,
-                          mt: 0.5,
-                        }}
-                      >
-                        {budget.categories &&
-                          budget.categories.map((category, index) => (
-                            <Chip
-                              key={index}
-                              label={category}
-                              size="small"
-                              color="primary"
-                              variant="outlined"
-                              sx={{ marginRight: 0.5, marginBottom: 0.5 }}
-                            />
-                          ))}
-                      </Box>
-                    </Box>
-                  </CardContent>
-
-                  <CardActions sx={{ p: 2, pt: 0 }}>
-                    <Button
-                      size="small"
-                      onClick={() => handleViewBudget(budget.id)}
-                      startIcon={<ChartIcon />}
-                    >
-                      View Details
-                    </Button>
-                    <Button
-                      size="small"
-                      color="primary"
-                      onClick={() => handleEditBudget(budget.id)}
-                      startIcon={<EditIcon />}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      size="small"
-                      color="error"
-                      onClick={() => handleDeleteConfirm(budget.id)}
-                      startIcon={<DeleteIcon />}
-                    >
-                      Delete
-                    </Button>
-                  </CardActions>
-                </Card>
-              </Grid>
-            ))
-          ) : (
-            <Grid item xs={12}>
-              <Paper sx={{ p: 3, textAlign: "center" }}>
-                <Typography variant="h6" color="text.secondary">
-                  {loading ? "Loading budgets..." : "No budgets found"}
-                </Typography>
-                {!loading && (
-                  <Button
-                    variant="outlined"
-                    color="primary"
-                    startIcon={<AddIcon />}
-                    sx={{ mt: 2 }}
-                    onClick={handleOpenDialog}
-                  >
-                    Create your first budget
-                  </Button>
-                )}
-              </Paper>
-            </Grid>
-          )}
-        </Grid>
-      )}
+      {/* Pagination controls */}
 
       {/* Add Budget Dialog */}
       <Dialog

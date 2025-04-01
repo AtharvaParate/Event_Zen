@@ -57,33 +57,57 @@ budgetAxios.interceptors.response.use(
 );
 
 // Get all budgets with optional pagination
+let budgetsCache = {
+  data: null,
+  timestamp: 0,
+  page: -1,
+  size: 0,
+};
+
+// Cache TTL in milliseconds (30 seconds)
+const CACHE_TTL = 30000;
+
 export const fetchBudgets = async (
   page = 0,
-  size = API_CONFIG.DEFAULT_PAGE_SIZE
+  size = API_CONFIG.DEFAULT_PAGE_SIZE,
+  forceRefresh = false
 ) => {
   try {
-    console.log(
-      `===== UPDATED fetchBudgets called: page=${page}, size=${size} =====`
-    );
-    console.log(`===== Budget API URL: ${API_CONFIG.BUDGET_API_URL} =====`);
-    console.log(`===== Budget endpoint: ${BUDGET_ENDPOINTS.BUDGETS} =====`);
-    console.log(`===== Using mock data: ${false} =====`);
+    // Check if we have a valid cache for this page and size
+    const now = Date.now();
+    if (
+      !forceRefresh &&
+      budgetsCache.data &&
+      budgetsCache.page === page &&
+      budgetsCache.size === size &&
+      now - budgetsCache.timestamp < CACHE_TTL
+    ) {
+      return budgetsCache.data;
+    }
 
+    // Only log when actually making a request, not on every call
+    console.log(`Fetching budgets: page=${page}, size=${size}`);
+
+    // Add cache buster to avoid browser caching
+    const cacheBuster = `_cb=${now}`;
+
+    // Use a more efficient request approach
     const response = await budgetAxios.get(
-      `${BUDGET_ENDPOINTS.BUDGETS}?page=${page}&size=${size}`
-    );
-    console.log("===== Budgets fetched successfully =====");
-    console.log(
-      "===== Response data type:",
-      typeof response.data,
-      Array.isArray(response.data) ? "array" : "not array"
+      `${BUDGET_ENDPOINTS.BUDGETS}?page=${page}&size=${size}&${cacheBuster}`,
+      {
+        timeout: 10000, // Shorter timeout for listing
+        headers: {
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
+      }
     );
 
-    // Check if the response is an array (non-paginated) or an object with content (paginated)
+    // Process response
+    let result;
     if (Array.isArray(response.data)) {
-      console.log("===== Converting array response to paginated format =====");
-      // Convert the array response to a paginated format
-      return {
+      // Convert array to paginated format
+      result = {
         content: response.data,
         totalPages: 1,
         totalElements: response.data.length,
@@ -92,26 +116,37 @@ export const fetchBudgets = async (
         first: page === 0,
         last: true,
       };
+    } else {
+      result = response.data;
     }
 
-    return response.data;
+    // Update cache
+    budgetsCache = {
+      data: result,
+      timestamp: now,
+      page: page,
+      size: size,
+    };
+
+    return result;
   } catch (error) {
-    console.error("===== Error fetching budgets =====", error);
-    console.error(`===== Error details: ${error.message} =====`);
-    console.error(
-      `===== Is network error: ${error.isAxiosError && !error.response} =====`
-    );
-
+    console.error("Error fetching budgets:", error.message);
     if (error.response) {
-      console.error(`===== Response status: ${error.response.status} =====`);
-      console.error(
-        `===== Response data: ${JSON.stringify(error.response.data)} =====`
-      );
+      console.error(`Response status: ${error.response.status}`);
     }
-
-    // No fallback to mock data - throw the error to be handled by the caller
     throw error;
   }
+};
+
+// Add a function to clear the cache when needed (e.g., after create/update/delete)
+export const clearBudgetsCache = () => {
+  console.log("Clearing budgets cache");
+  budgetsCache = {
+    data: null,
+    timestamp: 0,
+    page: -1,
+    size: 0,
+  };
 };
 
 // Get budget by ID
@@ -162,6 +197,10 @@ export const createBudget = async (budgetData) => {
         { timeout: 30000 } // 30 second timeout for each attempt
       );
       console.log("Budget created successfully:", response.data);
+
+      // Clear the cache since we've added a new budget
+      clearBudgetsCache();
+
       return response.data;
     } catch (error) {
       console.error(`Attempt ${retries + 1}: Error creating budget:`, error);
@@ -196,6 +235,10 @@ export const updateBudget = async (id, budgetData) => {
       budgetData
     );
     console.log(`Budget ${id} updated successfully:`, response.data);
+
+    // Clear the cache since we've updated a budget
+    clearBudgetsCache();
+
     return response.data;
   } catch (error) {
     console.error(`Error updating budget with ID ${id}:`, error);
@@ -526,6 +569,10 @@ export const deleteBudget = async (id) => {
 
     if (result && (result.success || result.notFound)) {
       console.log(`Budget ${id} deletion completed successfully`, result);
+
+      // Clear the cache since we've deleted a budget
+      clearBudgetsCache();
+
       return {
         success: true,
         message: "Budget deleted successfully",

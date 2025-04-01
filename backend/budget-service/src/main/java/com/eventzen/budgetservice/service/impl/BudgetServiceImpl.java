@@ -2,13 +2,15 @@ package com.eventzen.budgetservice.service.impl;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
-
-import javax.persistence.EntityNotFoundException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +32,7 @@ public class BudgetServiceImpl implements BudgetService {
     }
 
     @Override
+    @Cacheable(value = "allBudgetsCache", key = "'all'")
     public List<BudgetDTO> getAllBudgets() {
         logger.debug("Getting all budgets");
         return budgetRepository.findAll()
@@ -39,17 +42,19 @@ public class BudgetServiceImpl implements BudgetService {
     }
 
     @Override
+    @Cacheable(value = "budgetCache", key = "#id")
     public BudgetDTO getBudgetById(Long id) {
         logger.debug("Getting budget with ID: {}", id);
         Budget budget = budgetRepository.findById(id)
                 .orElseThrow(() -> {
                     logger.error("Budget not found with ID: {}", id);
-                    return new EntityNotFoundException("Budget not found with id: " + id);
+                    return new NoSuchElementException("Budget not found with id: " + id);
                 });
         return BudgetDTO.fromEntity(budget);
     }
 
     @Override
+    @Cacheable(value = "budgetsByEventCache", key = "#eventId")
     public List<BudgetDTO> getBudgetsByEventId(Long eventId) {
         logger.debug("Getting budgets for event with ID: {}", eventId);
         return budgetRepository.findByEventId(eventId)
@@ -60,6 +65,11 @@ public class BudgetServiceImpl implements BudgetService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "allBudgetsCache", allEntries = true),
+        @CacheEvict(value = "budgetsByEventCache", key = "#budgetDTO.eventId", condition = "#budgetDTO.eventId != null"),
+        @CacheEvict(value = "budgetsByStatusCache", allEntries = true)
+    })
     public BudgetDTO createBudget(BudgetDTO budgetDTO) {
         logger.info("Creating new budget: {}", budgetDTO);
         try {
@@ -78,13 +88,19 @@ public class BudgetServiceImpl implements BudgetService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "budgetCache", key = "#id"),
+        @CacheEvict(value = "allBudgetsCache", allEntries = true),
+        @CacheEvict(value = "budgetsByEventCache", key = "#budgetDTO.eventId", condition = "#budgetDTO.eventId != null"),
+        @CacheEvict(value = "budgetsByStatusCache", allEntries = true)
+    })
     public BudgetDTO updateBudget(Long id, BudgetDTO budgetDTO) {
         logger.info("Updating budget with ID: {}", id);
         try {
             Budget existingBudget = budgetRepository.findById(id)
                     .orElseThrow(() -> {
                         logger.error("Budget not found with ID: {}", id);
-                        return new EntityNotFoundException("Budget not found with id: " + id);
+                        return new NoSuchElementException("Budget not found with id: " + id);
                     });
 
             // Update fields from DTO
@@ -107,7 +123,7 @@ public class BudgetServiceImpl implements BudgetService {
             Budget updatedBudget = budgetRepository.save(existingBudget);
             logger.info("Successfully updated budget with ID: {}", updatedBudget.getId());
             return BudgetDTO.fromEntity(updatedBudget);
-        } catch (EntityNotFoundException e) {
+        } catch (NoSuchElementException e) {
             throw e;
         } catch (Exception e) {
             logger.error("Error updating budget: {}", e.getMessage(), e);
@@ -117,17 +133,23 @@ public class BudgetServiceImpl implements BudgetService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "budgetCache", key = "#id"),
+        @CacheEvict(value = "allBudgetsCache", allEntries = true),
+        @CacheEvict(value = "budgetsByEventCache", allEntries = true),
+        @CacheEvict(value = "budgetsByStatusCache", allEntries = true)
+    })
     public void deleteBudget(Long id) {
         logger.info("Deleting budget with ID: {}", id);
         try {
             Budget budget = budgetRepository.findById(id)
                     .orElseThrow(() -> {
                         logger.error("Budget not found with ID: {}", id);
-                        return new EntityNotFoundException("Budget not found with id: " + id);
+                        return new NoSuchElementException("Budget not found with id: " + id);
                     });
             budgetRepository.delete(budget);
             logger.info("Successfully deleted budget with ID: {}", id);
-        } catch (EntityNotFoundException e) {
+        } catch (NoSuchElementException e) {
             throw e;
         } catch (Exception e) {
             logger.error("Error deleting budget: {}", e.getMessage(), e);
@@ -136,6 +158,7 @@ public class BudgetServiceImpl implements BudgetService {
     }
 
     @Override
+    @Cacheable(value = "budgetsByStatusCache", key = "#status")
     public List<BudgetDTO> getBudgetsByStatus(Budget.BudgetStatus status) {
         logger.debug("Getting budgets with status: {}", status);
         return budgetRepository.findByStatus(status)
