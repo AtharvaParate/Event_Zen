@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Container,
   Grid,
@@ -22,6 +22,7 @@ import {
   CircularProgress,
   Snackbar,
   Alert,
+  DialogContentText,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -40,6 +41,7 @@ import ErrorDisplay from "../components/ErrorDisplay";
 
 const BudgetsPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [budgets, setBudgets] = useState([]);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -57,6 +59,8 @@ const BudgetsPage = () => {
     open: false,
     budgetId: null,
   });
+  const [deleteInProgress, setDeleteInProgress] = useState(false);
+  const [deletedBudgetIds, setDeletedBudgetIds] = useState([]);
 
   // Load budgets and events - wrapped in useCallback to use as dependency in useEffect
   const loadData = useCallback(async () => {
@@ -81,20 +85,28 @@ const BudgetsPage = () => {
         return;
       }
 
-      // Check if budgetsData has the expected structure
+      // Check if budgetsData has the expected structure and filter out deleted budgets
       if (budgetsData.content) {
         console.log(
           "BudgetsPage: Setting budgets from budgetsData.content:",
           budgetsData.content
         );
-        setBudgets(budgetsData.content);
+        // Filter out any recently deleted budgets
+        const filteredBudgets = budgetsData.content.filter(
+          (budget) => !deletedBudgetIds.includes(budget.id)
+        );
+        setBudgets(filteredBudgets);
         setTotalPages(budgetsData.totalPages || 1);
       } else if (Array.isArray(budgetsData)) {
         console.log(
           "BudgetsPage: Setting budgets directly from array:",
           budgetsData
         );
-        setBudgets(budgetsData);
+        // Filter out any recently deleted budgets
+        const filteredBudgets = budgetsData.filter(
+          (budget) => !deletedBudgetIds.includes(budget.id)
+        );
+        setBudgets(filteredBudgets);
         setTotalPages(1);
       } else {
         console.error("BudgetsPage: Unexpected data format:", budgetsData);
@@ -135,20 +147,73 @@ const BudgetsPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [page]);
+  }, [page, deletedBudgetIds]);
 
   // Load data on component mount or when page changes
   useEffect(() => {
     loadData();
   }, [page, loadData]);
 
-  // Handle refresh
+  // Check for navigation state (e.g., coming back after deletion from detail page)
+  useEffect(() => {
+    if (location.state) {
+      if (location.state.deletedBudget) {
+        // Show success message for deletion from detail page
+        setSnackbar({
+          open: true,
+          message: location.state.message || "Budget deleted successfully",
+          severity: "success",
+        });
+
+        // Add the deleted budget ID to our tracking if it was provided
+        if (location.state.deletedBudgetId) {
+          setDeletedBudgetIds((prev) => [
+            ...prev,
+            location.state.deletedBudgetId,
+          ]);
+        }
+
+        // Clear the navigation state to prevent showing the message again on refresh
+        navigate(location.pathname, { replace: true });
+
+        // Refresh data to ensure we're showing the latest
+        loadData();
+      } else if (location.state.error) {
+        // Show error message from detail page
+        setSnackbar({
+          open: true,
+          message: location.state.message || "An error occurred",
+          severity: "error",
+        });
+
+        // Clear the navigation state
+        navigate(location.pathname, { replace: true });
+      }
+    }
+  }, [location, navigate, loadData]);
+
+  // Handle refresh - updated to respect deleted budget IDs
   const handleRefresh = async () => {
     setLoading(true);
     try {
       // Load budgets with pagination
       const budgetsData = await fetchBudgets(page, 10);
-      setBudgets(budgetsData.content || []);
+
+      let refreshedBudgets = [];
+      if (budgetsData.content) {
+        refreshedBudgets = budgetsData.content;
+      } else if (Array.isArray(budgetsData)) {
+        refreshedBudgets = budgetsData;
+      } else {
+        refreshedBudgets = [];
+      }
+
+      // Filter out deleted budgets
+      const filteredBudgets = refreshedBudgets.filter(
+        (budget) => !deletedBudgetIds.includes(budget.id)
+      );
+
+      setBudgets(filteredBudgets);
       setTotalPages(budgetsData.totalPages || 1);
 
       // Also refresh events data
@@ -204,28 +269,84 @@ const BudgetsPage = () => {
     setDeleteConfirmDialog({ open: false, budgetId: null });
   };
 
-  // Handle delete budget
+  // Handle delete budget - update to add the deleted budget ID to our tracking array
   const handleDeleteBudget = async () => {
     if (!deleteConfirmDialog.budgetId) return;
 
+    const budgetIdToDelete = deleteConfirmDialog.budgetId;
+    console.log(`Starting deletion process for budget ID: ${budgetIdToDelete}`);
+
     setLoading(true);
+    setDeleteInProgress(true);
+
     try {
-      await deleteBudget(deleteConfirmDialog.budgetId);
+      // First remove the budget from UI immediately for better UX
+      setBudgets((prevBudgets) =>
+        prevBudgets.filter((budget) => budget.id !== budgetIdToDelete)
+      );
+
+      // Also add to our deleted IDs tracking to prevent reappearance on refresh
+      setDeletedBudgetIds((prev) => [...prev, budgetIdToDelete]);
+
+      // Then call the API
+      const result = await deleteBudget(budgetIdToDelete);
+      console.log("Delete budget API response:", result);
+
       setSnackbar({
         open: true,
-        message: "Budget deleted successfully",
+        message: result.message || "Budget deleted successfully",
         severity: "success",
       });
-      handleRefresh();
+
+      // No need to filter budgets again since we did it optimistically
+
+      // Refresh data in background after a short delay
+      setTimeout(() => {
+        // No need to call handleRefresh since it might bring the budget back
+        // due to eventual consistency in the backend
+        // We rely on our deletedBudgetIds filtering
+      }, 1000);
     } catch (err) {
       console.error("Error deleting budget:", err);
+
+      // Handle the error based on its type
+      let errorMessage = "Failed to delete budget";
+      let shouldRestoreBudget = true;
+
+      if (err.response) {
+        const status = err.response.status;
+        if (status === 403 || status === 401) {
+          errorMessage = "You don't have permission to delete this budget";
+        } else if (status === 404) {
+          errorMessage = "Budget not found - it may have been already deleted";
+          shouldRestoreBudget = false; // No need to restore if it's already gone
+        } else if (status >= 500) {
+          errorMessage = "Server error occurred while deleting budget";
+        }
+      } else if (err.request) {
+        errorMessage = "Network error - please check your connection";
+      } else if (err.message) {
+        errorMessage = `Error: ${err.message}`;
+      }
+
+      // Remove from deleted IDs if we need to restore it (only for non-404 errors)
+      if (shouldRestoreBudget) {
+        setDeletedBudgetIds((prev) =>
+          prev.filter((id) => id !== budgetIdToDelete)
+        );
+
+        // Add the budget back to the list if deletion failed
+        loadData(); // Reload budgets to restore the one we optimistically removed
+      }
+
       setSnackbar({
         open: true,
-        message: "Failed to delete budget",
+        message: errorMessage,
         severity: "error",
       });
     } finally {
       setLoading(false);
+      setDeleteInProgress(false);
       setDeleteConfirmDialog({ open: false, budgetId: null });
     }
   };
@@ -532,24 +653,31 @@ const BudgetsPage = () => {
       {/* Delete Confirmation Dialog */}
       <Dialog
         open={deleteConfirmDialog.open}
-        onClose={handleCloseDeleteConfirm}
+        onClose={!deleteInProgress ? handleCloseDeleteConfirm : undefined}
+        aria-labelledby="delete-dialog-title"
       >
-        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogTitle id="delete-dialog-title">Confirm Delete</DialogTitle>
         <DialogContent>
-          <Typography>
+          <DialogContentText>
             Are you sure you want to delete this budget? This action cannot be
             undone.
-          </Typography>
+          </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDeleteConfirm}>Cancel</Button>
           <Button
-            variant="contained"
-            color="error"
-            onClick={handleDeleteBudget}
-            autoFocus
+            onClick={handleCloseDeleteConfirm}
+            disabled={deleteInProgress}
           >
-            Delete
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteBudget}
+            color="error"
+            autoFocus
+            disabled={deleteInProgress}
+            startIcon={deleteInProgress ? <CircularProgress size={20} /> : null}
+          >
+            {deleteInProgress ? "Deleting..." : "Delete"}
           </Button>
         </DialogActions>
       </Dialog>

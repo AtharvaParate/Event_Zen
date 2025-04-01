@@ -18,6 +18,8 @@ import {
   DialogActions,
   Snackbar,
   Alert,
+  DialogContentText,
+  CircularProgress,
 } from "@mui/material";
 import {
   Edit as EditIcon,
@@ -86,6 +88,8 @@ const BudgetDetailPage = ({ edit = false }) => {
   const [incomeDialogOpen, setIncomeDialogOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [editDialogOpen, setEditDialogOpen] = useState(edit);
+  const [deleteInProgress, setDeleteInProgress] = useState(false);
+  const [redirectingAfterDelete, setRedirectingAfterDelete] = useState(false);
 
   // Load budget data - wrapped in useCallback to use as dependency in useEffect
   const loadBudgetData = useCallback(async () => {
@@ -215,28 +219,101 @@ const BudgetDetailPage = ({ edit = false }) => {
 
   // Handle budget deletion
   const handleDelete = async () => {
+    if (!id) return;
+
+    console.log(
+      `Starting deletion process for budget ID: ${id} from detail page`
+    );
     setLoading(true);
+    setDeleteInProgress(true);
+
     try {
-      await deleteBudget(id);
+      // Call the API to delete the budget
+      const result = await deleteBudget(id);
+      console.log("Delete budget API response from detail page:", result);
+
       setSnackbar({
         open: true,
-        message: "Budget deleted successfully",
+        message: result.message || "Budget deleted successfully",
         severity: "success",
       });
+
+      // Set a flag to prevent further interactions while redirecting
+      setRedirectingAfterDelete(true);
+
+      // Redirect after a short delay to show the success message
       setTimeout(() => {
-        navigate("/budgets");
+        navigate("/budgets", {
+          state: {
+            deletedBudget: true,
+            deletedBudgetId: parseInt(id, 10),
+            message: "Budget was successfully deleted",
+          },
+        });
       }, 1500);
     } catch (err) {
-      console.error("Error deleting budget:", err);
-      setError("Failed to delete budget. Please try again.");
+      console.error("Error deleting budget from detail page:", err);
+
+      // Provide more specific error message based on the error
+      let errorMessage = "Failed to delete budget. Please try again.";
+      let shouldRedirect = false;
+      let status = null;
+
+      if (err.response) {
+        // Server responded with an error
+        status = err.response.status;
+        if (status === 403 || status === 401) {
+          errorMessage = "You don't have permission to delete this budget";
+        } else if (status === 404) {
+          errorMessage = "Budget not found - it may have been already deleted";
+          shouldRedirect = true; // Redirect since the budget doesn't exist
+
+          // Still pass the ID to mark it as deleted
+          setTimeout(() => {
+            navigate("/budgets", {
+              state: {
+                deletedBudget: true,
+                deletedBudgetId: parseInt(id, 10),
+                message: errorMessage,
+              },
+            });
+          }, 2000);
+        } else if (status >= 500) {
+          errorMessage = "Server error occurred while deleting budget";
+        }
+      } else if (err.request) {
+        // Network error
+        errorMessage = "Network error - please check your connection";
+      } else if (err.message) {
+        // Other errors with message
+        errorMessage = `Error: ${err.message}`;
+      }
+
+      setError(errorMessage);
       setSnackbar({
         open: true,
-        message: "Failed to delete budget",
+        message: errorMessage,
         severity: "error",
       });
-      setLoading(false);
+
+      // Redirect if the budget doesn't exist anymore
+      if (shouldRedirect && status !== 404) {
+        setTimeout(() => {
+          navigate("/budgets", {
+            state: {
+              error: true,
+              message: errorMessage,
+            },
+          });
+        }, 2000);
+      } else {
+        // Only set loading to false if we're not redirecting
+        setLoading(false);
+      }
+    } finally {
+      setDeleteInProgress(false);
+      setDeleteConfirmOpen(false);
     }
-    setDeleteConfirmOpen(false);
   };
 
   // Format currency
@@ -668,25 +745,36 @@ const BudgetDetailPage = ({ edit = false }) => {
       {/* Delete Confirmation Dialog */}
       <Dialog
         open={deleteConfirmOpen}
-        onClose={() => setDeleteConfirmOpen(false)}
+        onClose={
+          !deleteInProgress ? () => setDeleteConfirmOpen(false) : undefined
+        }
+        aria-labelledby="delete-dialog-title"
       >
-        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogTitle id="delete-dialog-title">Delete Budget</DialogTitle>
         <DialogContent>
-          <Typography>
+          <DialogContentText>
             Are you sure you want to delete this budget? This action cannot be
-            undone and will also delete all associated expenses and income
-            records.
-          </Typography>
+            undone. All associated expenses and income records will also be
+            deleted.
+          </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
           <Button
-            variant="contained"
-            color="error"
-            onClick={handleDelete}
-            autoFocus
+            onClick={() => setDeleteConfirmOpen(false)}
+            disabled={deleteInProgress || redirectingAfterDelete}
           >
-            Delete
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDelete}
+            color="error"
+            variant="contained"
+            disabled={deleteInProgress || redirectingAfterDelete}
+            startIcon={
+              deleteInProgress ? <CircularProgress size={20} /> : <DeleteIcon />
+            }
+          >
+            {deleteInProgress ? "Deleting..." : "Delete"}
           </Button>
         </DialogActions>
       </Dialog>
