@@ -11,7 +11,7 @@ export const API_CONFIG = {
 
   // Event service API
   EVENT_API_URL:
-    process.env.REACT_APP_EVENT_API_URL || "http://localhost:8081/api",
+    process.env.REACT_APP_EVENT_API_URL || "http://localhost:8082/api",
 
   // Budget service API
   BUDGET_API_URL:
@@ -28,8 +28,11 @@ export const API_CONFIG = {
   // Feature flags
   USE_MOCK_DATA: false,
 
-  // Request timeout in milliseconds
-  REQUEST_TIMEOUT: 30000,
+  // Environment
+  NODE_ENV: process.env.NODE_ENV || "development",
+
+  // Request timeout in milliseconds (increased from 30000)
+  REQUEST_TIMEOUT: 60000,
 
   // Default pagination
   DEFAULT_PAGE_SIZE: 10,

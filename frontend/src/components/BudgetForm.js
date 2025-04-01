@@ -54,6 +54,12 @@ const BudgetForm = ({ budget = null, onSave, onCancel, mode = "create" }) => {
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [errors, setErrors] = useState({});
   const [customCategory, setCustomCategory] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [alertState, setAlertState] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
 
   // Load event data for dropdown
   useEffect(() => {
@@ -182,61 +188,156 @@ const BudgetForm = ({ budget = null, onSave, onCancel, mode = "create" }) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Enhanced submit handler
+  // Form submission handler
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Form submission attempted", formData);
-
-    if (!validateForm()) {
-      console.log("Form validation failed", errors);
-      return;
-    }
-
     setLoading(true);
+    setErrors({});
 
     try {
-      // Prepare data for API
+      // Validate the form
+      const validationErrors = validateForm(formData);
+      if (Object.keys(validationErrors).length > 0) {
+        setErrors(validationErrors);
+        setLoading(false);
+        return;
+      }
+
+      console.log(`Submitting budget data in ${mode} mode:`, formData);
+
+      // Format data for API
       const budgetData = {
         ...formData,
         totalBudget: parseFloat(formData.totalBudget),
-        categories: formData.categories || [], // Ensure categories is an array
+        currentExpenses: formData.currentExpenses
+          ? parseFloat(formData.currentExpenses)
+          : 0,
+        currentIncome: formData.currentIncome
+          ? parseFloat(formData.currentIncome)
+          : 0,
+        eventId: parseInt(formData.eventId, 10),
       };
 
-      // If editing, include the ID
-      if (mode === "edit" && budget?.id) {
-        budgetData.id = budget.id;
+      let result;
+      try {
+        // Call the appropriate API based on mode
+        if (mode === "create") {
+          setIsLoading(true); // Show loading state when creating
+          try {
+            result = await onSave(budgetData);
+            console.log("Budget created successfully:", result);
+
+            // Show success message
+            setIsLoading(false);
+            setAlertState({
+              open: true,
+              message: "Budget created successfully!",
+              severity: "success",
+            });
+
+            // Delay closing the form to allow the user to see the success message
+            setTimeout(() => {
+              onCancel();
+            }, 1500);
+          } catch (createError) {
+            setIsLoading(false);
+            console.error("Error creating budget:", createError);
+            handleApiError(createError);
+          }
+        } else {
+          setIsLoading(true); // Show loading state when updating
+          try {
+            result = await onSave(budgetData);
+            console.log(`Budget ${budget?.id} updated successfully:`, result);
+
+            // Show success message
+            setIsLoading(false);
+            setAlertState({
+              open: true,
+              message: `Budget ${budget?.id} updated successfully!`,
+              severity: "success",
+            });
+
+            // Delay closing the form to allow the user to see the success message
+            setTimeout(() => {
+              onCancel();
+            }, 1500);
+          } catch (updateError) {
+            setIsLoading(false);
+            console.error("Error updating budget:", updateError);
+            handleApiError(updateError);
+          }
+        }
+      } catch (apiError) {
+        console.error("API error:", apiError);
+        handleApiError(apiError);
       }
-
-      console.log("Sending budget data to API", budgetData);
-
-      // Validate that event ID exists
-      if (!budgetData.eventId) {
-        throw new Error("Event ID is required");
-      }
-
-      await onSave(budgetData);
-    } catch (err) {
-      console.error("Error saving budget:", err);
-      // Set specific error based on the error type
-      const errorMessage =
-        err.message === "Event ID is required"
-          ? "Please select an event"
-          : "Failed to save the budget. Please try again.";
-
-      setErrors((prev) => ({
-        ...prev,
-        eventId:
-          err.message === "Event ID is required"
-            ? "Please select an event"
-            : prev.eventId,
-        form: errorMessage,
-      }));
-
-      // Show alert dialog
-      alert("Error saving budget: " + errorMessage);
+    } catch (error) {
+      console.error("Unexpected error during form submission:", error);
+      setErrors({
+        form: `An unexpected error occurred: ${error.message}`,
+      });
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helper function to handle API errors
+  const handleApiError = (apiError) => {
+    // Check for specific API error responses
+    if (apiError.response) {
+      if (apiError.response.status === 400) {
+        // Bad request - likely validation errors
+        setErrors({
+          form: `Validation error: ${
+            apiError.response.data.message || "Please check your inputs"
+          }`,
+        });
+      } else if (apiError.response.status === 404) {
+        // Not found error
+        setErrors({
+          form: "The requested resource was not found. Please refresh and try again.",
+        });
+      } else if (apiError.response.status === 500) {
+        // Server error
+        setErrors({
+          form: "Server error occurred. Please try again later or contact support.",
+        });
+      } else {
+        // Other API errors
+        setErrors({
+          form: `Error: ${
+            apiError.response.data.message ||
+            apiError.message ||
+            "Unknown error"
+          }`,
+        });
+      }
+    } else if (apiError.request) {
+      // Network error - no response received
+      setErrors({
+        form: "Network error. Please check your connection and try again.",
+      });
+
+      // Show more specific error for timeouts
+      if (apiError.message && apiError.message.includes("timeout")) {
+        setErrors({
+          form: "Request timed out. The server might be busy. Please try again in a moment.",
+        });
+      }
+    } else {
+      // Other errors
+      setErrors({
+        form: `Error: ${apiError.message || "Unknown error occurred"}`,
+      });
+    }
+
+    // Show error in the alert
+    setAlertState({
+      open: true,
+      message: errors.form || "An error occurred while processing your request",
+      severity: "error",
+    });
   };
 
   return (
@@ -244,6 +345,17 @@ const BudgetForm = ({ budget = null, onSave, onCancel, mode = "create" }) => {
       {errors.form && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {errors.form}
+        </Alert>
+      )}
+
+      {/* Display success or error alerts */}
+      {alertState.open && (
+        <Alert
+          severity={alertState.severity}
+          sx={{ mb: 2 }}
+          onClose={() => setAlertState({ ...alertState, open: false })}
+        >
+          {alertState.message}
         </Alert>
       )}
 
@@ -259,7 +371,7 @@ const BudgetForm = ({ budget = null, onSave, onCancel, mode = "create" }) => {
             onChange={handleChange}
             error={!!errors.name}
             helperText={errors.name}
-            disabled={loading}
+            disabled={loading || isLoading}
           />
         </Grid>
 
@@ -271,7 +383,7 @@ const BudgetForm = ({ budget = null, onSave, onCancel, mode = "create" }) => {
               name="eventId"
               value={formData.eventId || ""}
               onChange={handleChange}
-              disabled={loading || loadingEvents}
+              disabled={loading || loadingEvents || isLoading}
             >
               {loadingEvents ? (
                 <MenuItem disabled>
@@ -437,16 +549,20 @@ const BudgetForm = ({ budget = null, onSave, onCancel, mode = "create" }) => {
           <Box
             sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 2 }}
           >
-            <Button variant="outlined" onClick={onCancel} disabled={loading}>
+            <Button
+              variant="outlined"
+              onClick={onCancel}
+              disabled={loading || isLoading}
+            >
               Cancel
             </Button>
             <Button
               type="submit"
               variant="contained"
-              disabled={loading}
-              startIcon={loading && <CircularProgress size={20} />}
+              disabled={loading || isLoading}
+              startIcon={isLoading && <CircularProgress size={20} />}
             >
-              {loading
+              {isLoading
                 ? "Saving..."
                 : mode === "edit"
                 ? "Update Budget"

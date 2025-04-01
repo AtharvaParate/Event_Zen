@@ -9,7 +9,7 @@ import {
 // Create a separate axios instance for event services with proper base URL
 const eventAxios = axios.create({
   baseURL: API_CONFIG.EVENT_API_URL,
-  timeout: API_CONFIG.REQUEST_TIMEOUT,
+  timeout: 60000, // Increased timeout to 60 seconds
   headers: {
     "Content-Type": "application/json",
   },
@@ -22,9 +22,35 @@ eventAxios.interceptors.request.use(
     if (authHeaders.Authorization) {
       config.headers["Authorization"] = authHeaders.Authorization;
     }
+    console.log(`Event API request to ${config.url}`, config);
     return config;
   },
   (error) => {
+    console.error("Event API request error:", error);
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor for better error handling
+eventAxios.interceptors.response.use(
+  (response) => {
+    console.log(
+      `Event API response from ${response.config.url}:`,
+      response.status
+    );
+    return response;
+  },
+  (error) => {
+    console.error("Event API Error:", error);
+    if (error.response) {
+      console.error(
+        "Error details:",
+        error.response.status,
+        error.response.data
+      );
+    } else if (error.request) {
+      console.error("No response received:", error.request);
+    }
     return Promise.reject(error);
   }
 );
@@ -239,18 +265,86 @@ const eventApi = {
 
       return newEvent;
     } else {
-      try {
-        console.log("Sending event data to API:", JSON.stringify(eventData));
-        const response = await eventAxios.post(
-          EVENT_ENDPOINTS.EVENTS,
-          eventData
-        );
-        console.log("API response:", response);
-        return response.data;
-      } catch (error) {
-        console.error("Error creating event:", error);
-        throw error;
-      }
+      let retries = 0;
+      const maxRetries = 3;
+
+      const attemptCreateEvent = async () => {
+        try {
+          console.log(
+            `Attempt ${retries + 1}: Sending event data to API:`,
+            JSON.stringify(eventData)
+          );
+          // Make a separate call with extended timeout for event creation
+          const response = await axios({
+            method: "post",
+            url: `${API_CONFIG.EVENT_API_URL}${EVENT_ENDPOINTS.EVENTS}`,
+            data: eventData,
+            timeout: 45000, // 45 seconds timeout for each attempt
+            headers: {
+              "Content-Type": "application/json",
+              ...getAuthHeader(),
+            },
+          });
+          console.log("Event creation API response:", response);
+          return response.data;
+        } catch (error) {
+          console.error(`Attempt ${retries + 1}: Error creating event:`, error);
+
+          // Check for specific server errors and provide better messages
+          if (error.response) {
+            if (error.response.status === 500) {
+              console.error(
+                "Server error - possible database issue:",
+                error.response.data
+              );
+              throw new Error(
+                "Server error occurred. The database might be unavailable or there's a data validation issue."
+              );
+            } else if (
+              error.response.status === 401 ||
+              error.response.status === 403
+            ) {
+              console.error("Authentication error:", error.response.data);
+              throw new Error(
+                "You don't have permission to create events. Please log in again."
+              );
+            }
+          }
+
+          // Check if it's a timeout error and we can retry
+          if (
+            (error.code === "ECONNABORTED" ||
+              (error.message && error.message.includes("timeout")) ||
+              (error.message && error.message.includes("Network Error"))) &&
+            retries < maxRetries
+          ) {
+            retries++;
+            console.log(
+              `Retrying event creation (${retries}/${maxRetries})...`
+            );
+            // Wait for 3 seconds before retrying
+            await new Promise((resolve) => setTimeout(resolve, 3000));
+            return attemptCreateEvent(); // Recursive retry
+          }
+
+          // If all retries failed
+          if (
+            error.code === "ECONNABORTED" ||
+            (error.message && error.message.includes("timeout"))
+          ) {
+            console.error(
+              "Event creation timed out after all retry attempts - please try again"
+            );
+            throw new Error(
+              "Request timed out. The server might be experiencing high load. Please try again later."
+            );
+          }
+
+          throw error;
+        }
+      };
+
+      return attemptCreateEvent();
     }
   },
 
