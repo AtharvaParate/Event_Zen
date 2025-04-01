@@ -25,6 +25,7 @@ import {
   Person as PersonIcon,
   Login as LoginIcon,
   AppRegistration as RegisterIcon,
+  AttachMoney as BudgetIcon,
 } from "@mui/icons-material";
 
 const drawerWidth = 240;
@@ -172,6 +173,18 @@ const Sidebar = ({ mobileOpen, onDrawerToggle }) => {
                   <EventIcon />
                 </ListItemIcon>
                 <ListItemText primary="Registrations" />
+              </ListItemButton>
+            </ListItem>
+            <ListItem disablePadding>
+              <ListItemButton
+                component={RouterLink}
+                to="/budgets"
+                selected={isSelected("/budgets")}
+              >
+                <ListItemIcon>
+                  <BudgetIcon />
+                </ListItemIcon>
+                <ListItemText primary="Budget Management" />
               </ListItemButton>
             </ListItem>
           </>

@@ -1,0 +1,35 @@
+server:
+  port: 8083
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: budget-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/budget_service}
+    username: ${SPRING_DATASOURCE_USERNAME:eventzen}
+    password: ${SPRING_DATASOURCE_PASSWORD:eventzen123}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: true
+
+auth:
+  service:
+    url: ${AUTH_SERVICE_URL:http://localhost:8081}
+
+event:
+  service:
+    url: ${EVENT_SERVICE_URL:http://localhost:8082}
+
+logging:
+  level:
+    com.eventzen: DEBUG
+    org.springframework: INFO
+    org.hibernate: ERROR

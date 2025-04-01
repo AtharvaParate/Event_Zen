@@ -1,10 +1,11 @@
 import axios from "axios";
 import { getToken, clearToken } from "../utils/authUtils";
+import { API_CONFIG, getAuthHeader } from "../config/apiConfig";
 
 // Configure API base URLs with fallbacks
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8081/api";
-const EVENT_API_URL =
-  process.env.REACT_APP_EVENT_API_URL || "http://localhost:8082/api";
+const API_URL = API_CONFIG.AUTH_API_URL;
+const EVENT_API_URL = API_CONFIG.EVENT_API_URL;
+const BUDGET_API_URL = API_CONFIG.BUDGET_API_URL;
 
 // Common request configuration
 const commonConfig = {
@@ -15,14 +16,13 @@ const commonConfig = {
   withCredentials: false, // Set to true only if your backend supports credentials
 };
 
-// For development mode, use mock data and prevent actual API calls
-const isDevelopment = process.env.NODE_ENV === "development";
-const useMockData = process.env.REACT_APP_USE_MOCK_DATA === "true";
-
-// Create axios instance for the attendee service
+// Create default axios instance with common configuration
 const axiosInstance = axios.create({
   baseURL: API_URL,
-  ...commonConfig,
+  headers: {
+    "Content-Type": "application/json",
+  },
+  timeout: API_CONFIG.REQUEST_TIMEOUT,
 });
 
 // Create another instance for the event service
@@ -30,6 +30,51 @@ const eventApiInstance = axios.create({
   baseURL: EVENT_API_URL,
   ...commonConfig,
 });
+
+// Create an instance for the budget service
+const budgetApiInstance = axios.create({
+  baseURL: BUDGET_API_URL,
+  ...commonConfig,
+});
+
+// Add auth interceptor
+axiosInstance.interceptors.request.use(
+  (config) => {
+    const authHeaders = getAuthHeader();
+    if (authHeaders.Authorization) {
+      config.headers["Authorization"] = authHeaders.Authorization;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor to handle common error cases
+axiosInstance.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    // Log detailed error information
+    if (error.response) {
+      console.error(`API Error: ${error.response.status}`, error.response.data);
+
+      // Handle auth errors (e.g., redirect to login)
+      if (error.response.status === 401) {
+        console.warn("Authentication error - redirecting to login");
+        // TODO: Redirect to login or dispatch auth error action
+      }
+    } else if (error.request) {
+      console.error("No response received:", error.request);
+    } else {
+      console.error("Error setting up request:", error.message);
+    }
+
+    return Promise.reject(error);
+  }
+);
 
 // Helper function to add auth token and log request
 const setupRequestInterceptor = (instance, serviceName) => {
@@ -46,11 +91,6 @@ const setupRequestInterceptor = (instance, serviceName) => {
       const token = getToken();
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
-      }
-
-      // For mock mode, add a flag to indicate we're in mock mode
-      if (isDevelopment && useMockData) {
-        config.headers["x-mock-data"] = "true";
       }
 
       return config;
@@ -101,5 +141,5 @@ setupResponseInterceptor(axiosInstance, "Attendee API");
 setupRequestInterceptor(eventApiInstance, "Event API");
 setupResponseInterceptor(eventApiInstance, "Event API");
 
-export { axiosInstance, eventApiInstance };
+export { axiosInstance, eventApiInstance, budgetApiInstance };
 export default axiosInstance;

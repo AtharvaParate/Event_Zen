@@ -1,0 +1,20 @@
+server:
+  port: 8084
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: attendee-service
+  data:
+    mongodb:
+      host: localhost
+      port: 27017
+      database: attendee_service
+      auto-index-creation: true
+
+logging:
+  level:
+    com.eventzen: DEBUG
+    org.springframework: INFO
+    org.mongodb: INFO 

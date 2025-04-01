@@ -1,11 +1,39 @@
-import { getRandomDefaultImage } from "../utils/imageUtils";
-import { eventApiInstance } from "./axiosConfig";
 import axios from "axios";
+import { getRandomDefaultImage } from "../utils/imageUtils";
+import {
+  API_CONFIG,
+  EVENT_ENDPOINTS,
+  getAuthHeader,
+} from "../config/apiConfig";
+
+// Create a separate axios instance for event services with proper base URL
+const eventAxios = axios.create({
+  baseURL: API_CONFIG.EVENT_API_URL,
+  timeout: API_CONFIG.REQUEST_TIMEOUT,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+// Add auth interceptor
+eventAxios.interceptors.request.use(
+  (config) => {
+    const authHeaders = getAuthHeader();
+    if (authHeaders.Authorization) {
+      config.headers["Authorization"] = authHeaders.Authorization;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 // Mock events data
 const mockEvents = [
   {
     id: "evt-001",
+    name: "Tech Conference 2024",
     title: "Tech Conference 2024",
     description: "Join us for the latest in technology innovation",
     startDate: "2024-09-15T09:00:00",
@@ -21,6 +49,7 @@ const mockEvents = [
   },
   {
     id: "evt-002",
+    name: "Music Festival",
     title: "Music Festival",
     description: "Annual music festival featuring top artists",
     startDate: "2024-07-20T12:00:00",
@@ -36,6 +65,7 @@ const mockEvents = [
   },
   {
     id: "evt-003",
+    name: "Wellness Retreat",
     title: "Wellness Retreat",
     description: "Weekend wellness and mindfulness retreat",
     startDate: "2024-08-05T08:00:00",
@@ -94,87 +124,60 @@ const mockTicketTypes = [
 const USE_MOCK_DATA = false;
 
 // Simple fetchEvents function for our new components
-export const fetchEvents = async (page = 0, size = 10) => {
+export const fetchEvents = async (
+  page = 0,
+  size = API_CONFIG.DEFAULT_PAGE_SIZE
+) => {
   try {
-    const response = await eventApi.getEvents({ page, size });
-    return response;
-  } catch (error) {
-    console.error("Error fetching events:", error);
+    console.log("===== UPDATED fetchEvents called =====");
+    console.log(`===== Events API URL: ${API_CONFIG.EVENT_API_URL} =====`);
+    console.log(`===== Events endpoint: ${EVENT_ENDPOINTS.EVENTS} =====`);
+    console.log(`===== Using mock data: ${API_CONFIG.USE_MOCK_DATA} =====`);
 
-    // For development, return mock data if the API fails
-    if (process.env.NODE_ENV === "development") {
-      console.warn("Returning mock data for events due to API error");
+    const response = await eventAxios.get(
+      `${EVENT_ENDPOINTS.EVENTS}?page=${page}&size=${size}`
+    );
+    console.log(
+      "===== Events API response type:",
+      typeof response.data,
+      Array.isArray(response.data) ? "array" : "not array"
+    );
 
-      // Return mock events in paginated format
+    // Check if the response is an array (non-paginated) or an object with content (paginated)
+    if (Array.isArray(response.data)) {
+      console.log("===== Converting array response to paginated format =====");
+      // Convert the array response to a paginated format
       return {
-        content: mockEvents,
-        totalElements: mockEvents.length,
+        content: response.data,
         totalPages: 1,
-        number: page,
+        totalElements: response.data.length,
         size: size,
+        number: page,
         first: page === 0,
         last: true,
       };
     }
 
+    return response.data;
+  } catch (error) {
+    console.error("===== Error fetching events =====", error);
+    console.error(`===== Error details: ${error.message} =====`);
+
+    // No fallback to mock data - throw the error to be handled by the caller
     throw error;
   }
 };
 
 const eventApi = {
   getEvents: async (params) => {
-    if (USE_MOCK_DATA) {
-      // For demo: simulate a network delay
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      const { userId } = params || {};
-      let filteredEvents = [...mockEvents];
-
-      // If userId is provided, filter events by organizer
-      if (userId) {
-        filteredEvents = mockEvents.filter(
-          (event) => event.organizer.id === userId
-        );
-      }
-
-      // Return paginated response format
-      return {
-        content: filteredEvents,
-        totalElements: filteredEvents.length,
-        totalPages: 1,
-        number: 0,
-        size: filteredEvents.length,
-      };
-    } else {
-      try {
-        // Create a raw axios instance without auth headers for public endpoints
-        const publicAxios = axios.create({
-          baseURL:
-            process.env.REACT_APP_EVENT_API_URL || "http://localhost:8082/api",
-          timeout: 30000,
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-
-        const response = await publicAxios.get("/events", { params });
-        return response.data;
-      } catch (error) {
-        console.error("Error fetching events:", error);
-
-        // Log more detailed error information
-        if (error.response) {
-          console.error("Response data:", error.response.data);
-          console.error("Response status:", error.response.status);
-          console.error("Response headers:", error.response.headers);
-        } else if (error.request) {
-          console.error("No response received:", error.request);
-        } else {
-          console.error("Error message:", error.message);
-        }
-
-        throw error;
-      }
+    try {
+      const response = await eventAxios.get(EVENT_ENDPOINTS.EVENTS, {
+        params,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching events:", error);
+      throw error;
     }
   },
 
@@ -192,58 +195,14 @@ const eventApi = {
       return event;
     } else {
       try {
-        // Convert potential numeric IDs to strings and log it
         const eventId = id.toString();
         console.log(`Fetching event with ID: ${eventId}`);
-
-        // Handle special case for ID "1" in development mode
-        if (eventId === "1") {
-          console.log(
-            "Development mode: Using first event from mock data for ID 1"
-          );
-          return {
-            id: "1",
-            title: "Demo Event",
-            description: "This is a demo event for development",
-            startTime: [2025, 3, 30, 13, 0],
-            endTime: [2025, 3, 30, 15, 0],
-            location: "Demo Location",
-            category: "TECHNOLOGY",
-            maxAttendees: 100,
-            price: 0,
-            organizerId: "test-organizer",
-            status: "PUBLISHED",
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
-        }
-
-        // Create a raw axios instance without auth headers for public endpoints
-        const publicAxios = axios.create({
-          baseURL:
-            process.env.REACT_APP_EVENT_API_URL || "http://localhost:8082/api",
-          timeout: 30000,
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-
-        const response = await publicAxios.get(`/events/${eventId}`);
+        const response = await eventAxios.get(
+          EVENT_ENDPOINTS.EVENT_BY_ID(eventId)
+        );
         return response.data;
       } catch (error) {
         console.error(`Error fetching event ${id}:`, error);
-
-        // Log more detailed error information
-        if (error.response) {
-          console.error("Response data:", error.response.data);
-          console.error("Response status:", error.response.status);
-          console.error("Response headers:", error.response.headers);
-        } else if (error.request) {
-          console.error("No response received:", error.request);
-        } else {
-          console.error("Error message:", error.message);
-        }
-
         throw error;
       }
     }
@@ -282,48 +241,14 @@ const eventApi = {
     } else {
       try {
         console.log("Sending event data to API:", JSON.stringify(eventData));
-
-        // Create a raw axios instance without auth headers for public endpoints
-        const publicAxios = axios.create({
-          baseURL:
-            process.env.REACT_APP_EVENT_API_URL || "http://localhost:8082/api",
-          timeout: 30000,
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-
-        // Use the public endpoint for testing with a clean axios instance
-        const response = await publicAxios.post(
-          "/events/public/create",
+        const response = await eventAxios.post(
+          EVENT_ENDPOINTS.EVENTS,
           eventData
         );
-
         console.log("API response:", response);
-
-        if (response && response.data) {
-          return response.data;
-        } else {
-          throw new Error("No data returned from API");
-        }
+        return response.data;
       } catch (error) {
         console.error("Error creating event:", error);
-
-        // Log more detailed error information
-        if (error.response) {
-          // The request was made and the server responded with a status code
-          // that falls out of the range of 2xx
-          console.error("Response data:", error.response.data);
-          console.error("Response status:", error.response.status);
-          console.error("Response headers:", error.response.headers);
-        } else if (error.request) {
-          // The request was made but no response was received
-          console.error("No response received:", error.request);
-        } else {
-          // Something happened in setting up the request that triggered an Error
-          console.error("Error message:", error.message);
-        }
-
         throw error;
       }
     }
@@ -350,34 +275,14 @@ const eventApi = {
       return updatedEvent;
     } else {
       try {
-        // Create a raw axios instance without auth headers for public endpoints
-        const publicAxios = axios.create({
-          baseURL:
-            process.env.REACT_APP_EVENT_API_URL || "http://localhost:8082/api",
-          timeout: 30000,
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-
-        console.log("Updating event with data:", JSON.stringify(eventData));
-        const response = await publicAxios.put(`/events/${id}`, eventData);
+        const response = await eventAxios.put(
+          EVENT_ENDPOINTS.EVENT_BY_ID(id),
+          eventData
+        );
         console.log("Update response:", response);
         return response.data;
       } catch (error) {
         console.error(`Error updating event ${id}:`, error);
-
-        // Log more detailed error information
-        if (error.response) {
-          console.error("Response data:", error.response.data);
-          console.error("Response status:", error.response.status);
-          console.error("Response headers:", error.response.headers);
-        } else if (error.request) {
-          console.error("No response received:", error.request);
-        } else {
-          console.error("Error message:", error.message);
-        }
-
         throw error;
       }
     }
@@ -399,34 +304,13 @@ const eventApi = {
       return { success: true };
     } else {
       try {
-        // Create a raw axios instance without auth headers for public endpoints
-        const publicAxios = axios.create({
-          baseURL:
-            process.env.REACT_APP_EVENT_API_URL || "http://localhost:8082/api",
-          timeout: 30000,
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-
-        console.log(`Deleting event with ID: ${id}`);
-        const response = await publicAxios.delete(`/events/${id}`);
+        const response = await eventAxios.delete(
+          EVENT_ENDPOINTS.EVENT_BY_ID(id)
+        );
         console.log("Delete response:", response);
         return response.data;
       } catch (error) {
         console.error(`Error deleting event ${id}:`, error);
-
-        // Log more detailed error information
-        if (error.response) {
-          console.error("Response data:", error.response.data);
-          console.error("Response status:", error.response.status);
-          console.error("Response headers:", error.response.headers);
-        } else if (error.request) {
-          console.error("No response received:", error.request);
-        } else {
-          console.error("Error message:", error.message);
-        }
-
         throw error;
       }
     }
@@ -440,7 +324,7 @@ const eventApi = {
       return mockEvents.filter((event) => event.status === "UPCOMING");
     } else {
       try {
-        const response = await eventApiInstance.get("/events/upcoming");
+        const response = await eventAxios.get(EVENT_ENDPOINTS.UPCOMING_EVENTS);
         return response.data;
       } catch (error) {
         console.error("Error fetching upcoming events:", error);
@@ -457,8 +341,8 @@ const eventApi = {
       return mockEvents.filter((event) => event.category === category);
     } else {
       try {
-        const response = await eventApiInstance.get(
-          `/events/category/${category}`
+        const response = await eventAxios.get(
+          EVENT_ENDPOINTS.EVENTS_BY_CATEGORY(category)
         );
         return response.data;
       } catch (error) {
@@ -476,8 +360,8 @@ const eventApi = {
       return mockEvents.filter((event) => event.organizer.id === organizerId);
     } else {
       try {
-        const response = await eventApiInstance.get(
-          `/events/organizer/${organizerId}`
+        const response = await eventAxios.get(
+          EVENT_ENDPOINTS.EVENTS_BY_ORGANIZER(organizerId)
         );
         return response.data;
       } catch (error) {
@@ -506,36 +390,13 @@ const eventApi = {
       return mockEvents[index];
     } else {
       try {
-        // Create a raw axios instance without auth headers for public endpoints
-        const publicAxios = axios.create({
-          baseURL:
-            process.env.REACT_APP_EVENT_API_URL || "http://localhost:8082/api",
-          timeout: 30000,
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-
-        console.log(`Updating status for event ${id} to ${status}`);
-        const response = await publicAxios.patch(
-          `/events/${id}/status?status=${status}`
+        const response = await eventAxios.patch(
+          EVENT_ENDPOINTS.EVENT_STATUS(id, status)
         );
         console.log("Status update response:", response);
         return response.data;
       } catch (error) {
         console.error(`Error updating status for event ${id}:`, error);
-
-        // Log more detailed error information
-        if (error.response) {
-          console.error("Response data:", error.response.data);
-          console.error("Response status:", error.response.status);
-          console.error("Response headers:", error.response.headers);
-        } else if (error.request) {
-          console.error("No response received:", error.request);
-        } else {
-          console.error("Error message:", error.message);
-        }
-
         throw error;
       }
     }
@@ -546,7 +407,7 @@ const eventApi = {
     try {
       console.log(`Fetching ticket types for event ${eventId}`);
       const response = await fetch(
-        `${process.env.REACT_APP_EVENT_API_URL}/${eventId}/ticket-types`
+        `${API_CONFIG.EVENT_API_URL}/${eventId}/ticket-types`
       );
 
       if (!response.ok) {
@@ -555,7 +416,7 @@ const eventApi = {
         );
 
         // In development, return mock data if API fails
-        if (process.env.NODE_ENV === "development") {
+        if (API_CONFIG.NODE_ENV === "development") {
           console.log("Using mock ticket type data in development");
           return [
             {
@@ -587,7 +448,7 @@ const eventApi = {
       console.error("Error fetching ticket types:", error);
 
       // In development, return mock data if API fails
-      if (process.env.NODE_ENV === "development") {
+      if (API_CONFIG.NODE_ENV === "development") {
         console.log("Using mock ticket type data in development due to error");
         return [
           {
@@ -645,18 +506,8 @@ const eventApi = {
           ];
     } else {
       try {
-        // Create a raw axios instance without auth headers for public endpoints
-        const publicAxios = axios.create({
-          baseURL:
-            process.env.REACT_APP_EVENT_API_URL || "http://localhost:8082/api",
-          timeout: 30000,
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-
-        const response = await publicAxios.get(
-          `/events/${eventId}/ticket-types`
+        const response = await eventAxios.get(
+          EVENT_ENDPOINTS.TICKET_TYPES(eventId)
         );
         return response.data;
       } catch (error) {
@@ -666,7 +517,7 @@ const eventApi = {
         );
 
         // In development mode, return mock data
-        if (process.env.NODE_ENV === "development") {
+        if (API_CONFIG.NODE_ENV === "development") {
           console.warn("Returning mock ticket types in development");
           return [
             {
@@ -703,31 +554,33 @@ export const fetchTicketTypesByEventId = async (eventId) => {
     console.error(`Error fetching ticket types for event ${eventId}:`, error);
 
     // For development, return mock data if the API fails
-    if (process.env.NODE_ENV === "development") {
-      console.warn(`Returning mock ticket types for event ${eventId} due to API error`);
+    if (API_CONFIG.NODE_ENV === "development") {
+      console.warn(
+        `Returning mock ticket types for event ${eventId} due to API error`
+      );
 
       // Filter ticket types by event ID
       const filteredTicketTypes = mockTicketTypes.filter(
-        ticket => ticket.eventId === eventId
+        (ticket) => ticket.eventId === eventId
       );
 
       // If no ticket types for this event, return default ones
       if (filteredTicketTypes.length === 0) {
         return [
           {
-            id: 'general',
-            name: 'General Admission',
+            id: "general",
+            name: "General Admission",
             price: 50,
-            description: 'Standard entry ticket',
-            eventId: eventId
+            description: "Standard entry ticket",
+            eventId: eventId,
           },
           {
-            id: 'vip',
-            name: 'VIP',
+            id: "vip",
+            name: "VIP",
             price: 100,
-            description: 'Premium access with special perks',
-            eventId: eventId
-          }
+            description: "Premium access with special perks",
+            eventId: eventId,
+          },
         ];
       }
 

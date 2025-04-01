@@ -1,86 +1,70 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import vendorApi from "../api/vendorApi";
+import {
+  fetchVendors,
+  fetchVendorById,
+  createVendor,
+  updateVendor,
+  deleteVendor,
+} from "../api/vendorApi";
 import { setAlert } from "./uiSlice";
 
-// Async thunks
-export const fetchVendors = createAsyncThunk(
+// Async thunks for vendor operations
+export const fetchVendorsAsync = createAsyncThunk(
   "vendors/fetchVendors",
-  async (params, { dispatch, rejectWithValue }) => {
+  async (_, { rejectWithValue }) => {
     try {
-      return await vendorApi.getVendors(params);
+      const response = await fetchVendors();
+      return response;
     } catch (error) {
-      const message =
-        error.response?.data?.message || "Failed to fetch vendors";
-      dispatch(setAlert({ type: "error", message }));
-      return rejectWithValue(message);
+      return rejectWithValue(error.message);
     }
   }
 );
 
-export const fetchVendor = createAsyncThunk(
-  "vendors/fetchVendor",
-  async (id, { dispatch, rejectWithValue }) => {
+export const fetchVendorByIdAsync = createAsyncThunk(
+  "vendors/fetchVendorById",
+  async (id, { rejectWithValue }) => {
     try {
-      return await vendorApi.getVendorById(id);
+      const response = await fetchVendorById(id);
+      return response;
     } catch (error) {
-      const message =
-        error.response?.data?.message || "Failed to fetch vendor details";
-      dispatch(setAlert({ type: "error", message }));
-      return rejectWithValue(message);
+      return rejectWithValue(error.message);
     }
   }
 );
 
-export const createVendor = createAsyncThunk(
+export const createVendorAsync = createAsyncThunk(
   "vendors/createVendor",
-  async (vendorData, { dispatch, rejectWithValue }) => {
+  async (vendorData, { rejectWithValue }) => {
     try {
-      const response = await vendorApi.createVendor(vendorData);
-      dispatch(
-        setAlert({ type: "success", message: "Vendor created successfully" })
-      );
+      const response = await createVendor(vendorData);
       return response;
     } catch (error) {
-      const message =
-        error.response?.data?.message || "Failed to create vendor";
-      dispatch(setAlert({ type: "error", message }));
-      return rejectWithValue(message);
+      return rejectWithValue(error.message);
     }
   }
 );
 
-export const updateVendor = createAsyncThunk(
+export const updateVendorAsync = createAsyncThunk(
   "vendors/updateVendor",
-  async ({ id, vendorData }, { dispatch, rejectWithValue }) => {
+  async ({ id, vendorData }, { rejectWithValue }) => {
     try {
-      const response = await vendorApi.updateVendor(id, vendorData);
-      dispatch(
-        setAlert({ type: "success", message: "Vendor updated successfully" })
-      );
+      const response = await updateVendor(id, vendorData);
       return response;
     } catch (error) {
-      const message =
-        error.response?.data?.message || "Failed to update vendor";
-      dispatch(setAlert({ type: "error", message }));
-      return rejectWithValue(message);
+      return rejectWithValue(error.message);
     }
   }
 );
 
-export const deleteVendor = createAsyncThunk(
+export const deleteVendorAsync = createAsyncThunk(
   "vendors/deleteVendor",
-  async (id, { dispatch, rejectWithValue }) => {
+  async (id, { rejectWithValue }) => {
     try {
-      await vendorApi.deleteVendor(id);
-      dispatch(
-        setAlert({ type: "success", message: "Vendor deleted successfully" })
-      );
+      await deleteVendor(id);
       return id;
     } catch (error) {
-      const message =
-        error.response?.data?.message || "Failed to delete vendor";
-      dispatch(setAlert({ type: "error", message }));
-      return rejectWithValue(message);
+      return rejectWithValue(error.message);
     }
   }
 );
@@ -112,11 +96,11 @@ const vendorSlice = createSlice({
   extraReducers: (builder) => {
     builder
       // Fetch Vendors
-      .addCase(fetchVendors.pending, (state) => {
+      .addCase(fetchVendorsAsync.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(fetchVendors.fulfilled, (state, action) => {
+      .addCase(fetchVendorsAsync.fulfilled, (state, action) => {
         state.loading = false;
         state.vendors = action.payload.content;
         state.pagination = {
@@ -125,62 +109,62 @@ const vendorSlice = createSlice({
           currentPage: action.payload.number,
         };
       })
-      .addCase(fetchVendors.rejected, (state, action) => {
+      .addCase(fetchVendorsAsync.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
 
       // Fetch Single Vendor
-      .addCase(fetchVendor.pending, (state) => {
+      .addCase(fetchVendorByIdAsync.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(fetchVendor.fulfilled, (state, action) => {
+      .addCase(fetchVendorByIdAsync.fulfilled, (state, action) => {
         state.loading = false;
         state.vendor = action.payload;
       })
-      .addCase(fetchVendor.rejected, (state, action) => {
+      .addCase(fetchVendorByIdAsync.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
 
       // Create Vendor
-      .addCase(createVendor.pending, (state) => {
+      .addCase(createVendorAsync.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(createVendor.fulfilled, (state, action) => {
+      .addCase(createVendorAsync.fulfilled, (state, action) => {
         state.loading = false;
         state.vendors.unshift(action.payload);
       })
-      .addCase(createVendor.rejected, (state, action) => {
+      .addCase(createVendorAsync.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
 
       // Update Vendor
-      .addCase(updateVendor.pending, (state) => {
+      .addCase(updateVendorAsync.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(updateVendor.fulfilled, (state, action) => {
+      .addCase(updateVendorAsync.fulfilled, (state, action) => {
         state.loading = false;
         state.vendor = action.payload;
         state.vendors = state.vendors.map((vendor) =>
           vendor.id === action.payload.id ? action.payload : vendor
         );
       })
-      .addCase(updateVendor.rejected, (state, action) => {
+      .addCase(updateVendorAsync.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
 
       // Delete Vendor
-      .addCase(deleteVendor.pending, (state) => {
+      .addCase(deleteVendorAsync.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(deleteVendor.fulfilled, (state, action) => {
+      .addCase(deleteVendorAsync.fulfilled, (state, action) => {
         state.loading = false;
         state.vendors = state.vendors.filter(
           (vendor) => vendor.id !== action.payload
@@ -189,7 +173,7 @@ const vendorSlice = createSlice({
           state.vendor = null;
         }
       })
-      .addCase(deleteVendor.rejected, (state, action) => {
+      .addCase(deleteVendorAsync.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });
