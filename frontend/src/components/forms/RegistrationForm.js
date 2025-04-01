@@ -65,6 +65,7 @@ const RegistrationForm = ({
   const [errors, setErrors] = useState({});
   const [ticketTypes, setTicketTypes] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingEvents, setLoadingEvents] = useState(false);
 
   useEffect(() => {
     if (initialData && Object.keys(initialData).length > 0) {
@@ -82,9 +83,29 @@ const RegistrationForm = ({
 
   useEffect(() => {
     if (formData.eventId) {
-      loadTicketTypes(formData.eventId);
+      fetchTicketTypes(formData.eventId);
     }
   }, [formData.eventId]);
+
+  const fetchTicketTypes = async (eventId) => {
+    if (!eventId) return;
+
+    setIsLoading(true);
+    try {
+      const data = await eventApi.fetchTicketTypesByEventId(eventId);
+      setTicketTypes(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Error fetching ticket types:", error);
+      // Fallback ticket types if API fails
+      setTicketTypes([
+        { id: "general", name: "General Admission", price: 50 },
+        { id: "vip", name: "VIP", price: 100 },
+        { id: "early-bird", name: "Early Bird", price: 35 },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const loadTicketTypes = async (eventId) => {
     if (!eventId) return;
@@ -214,11 +235,14 @@ const RegistrationForm = ({
           <Autocomplete
             id="attendee-select"
             options={attendees}
-            getOptionLabel={(option) =>
-              typeof option === "string"
-                ? option
-                : `${option.firstName} ${option.lastName} (${option.email})`
-            }
+            getOptionLabel={(option) => {
+              // Handle both object and string cases
+              if (!option) return "";
+              if (typeof option === "string") return option;
+              return `${option.firstName || ""} ${option.lastName || ""} (${
+                option.email || "No email"
+              })`;
+            }}
             value={selectedAttendee.id ? selectedAttendee : null}
             onChange={(event, newValue) => {
               handleAutocompleteChange(
@@ -226,16 +250,31 @@ const RegistrationForm = ({
                 newValue ? newValue.id : ""
               );
             }}
+            isOptionEqualToValue={(option, value) => {
+              return option.id === (value ? value.id : null);
+            }}
             disabled={mode === "edit" || isSubmitting}
             renderInput={(params) => (
               <TextField
                 {...params}
                 label="Attendee *"
                 error={!!errors.attendeeId}
-                helperText={errors.attendeeId}
+                helperText={
+                  errors.attendeeId ||
+                  (attendees.length === 0 ? "No attendees available" : "")
+                }
                 fullWidth
               />
             )}
+            renderOption={(props, option) => (
+              <li {...props} key={option.id}>
+                {`${option.firstName || ""} ${option.lastName || ""} (${
+                  option.email || "No email"
+                })`}
+              </li>
+            )}
+            loading={loadingEvents}
+            loadingText="Loading attendees..."
           />
         </Grid>
 
@@ -244,16 +283,27 @@ const RegistrationForm = ({
           <Autocomplete
             id="event-select"
             options={events}
-            getOptionLabel={(option) =>
-              typeof option === "string"
-                ? option
-                : `${option.name || option.title} (${new Date(
-                    option.startDate
-                  ).toLocaleDateString()})`
-            }
+            getOptionLabel={(option) => {
+              // Handle both object and string cases
+              if (!option) return "";
+              if (typeof option === "string") return option;
+              const title = option.name || option.title || `Event ${option.id}`;
+              const date = option.startDate
+                ? new Date(option.startDate).toLocaleDateString()
+                : "No date";
+              return `${title} (${date})`;
+            }}
             value={selectedEvent.id ? selectedEvent : null}
             onChange={(event, newValue) => {
               handleAutocompleteChange("eventId", newValue ? newValue.id : "");
+
+              // Reset ticket types when changing event
+              if (newValue && newValue.id !== formData.eventId) {
+                fetchTicketTypes(newValue.id);
+              }
+            }}
+            isOptionEqualToValue={(option, value) => {
+              return option.id === (value ? value.id : null);
             }}
             disabled={mode === "edit" || isSubmitting}
             renderInput={(params) => (
@@ -261,10 +311,26 @@ const RegistrationForm = ({
                 {...params}
                 label="Event *"
                 error={!!errors.eventId}
-                helperText={errors.eventId}
+                helperText={
+                  errors.eventId ||
+                  (events.length === 0 ? "No events available" : "")
+                }
                 fullWidth
               />
             )}
+            renderOption={(props, option) => {
+              const title = option.name || option.title || `Event ${option.id}`;
+              const date = option.startDate
+                ? new Date(option.startDate).toLocaleDateString()
+                : "No date";
+              return (
+                <li {...props} key={option.id}>
+                  {`${title} (${date})`}
+                </li>
+              );
+            }}
+            loading={loadingEvents}
+            loadingText="Loading events..."
           />
         </Grid>
 
