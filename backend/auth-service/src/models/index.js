@@ -1,21 +1,18 @@
-const { Sequelize } = require("sequelize");
-const path = require("path");
+const mongoose = require('mongoose');
+const User = require('./user.model');
 
-// Initialize Sequelize with SQLite for easier testing
-const sequelize = new Sequelize({
-  dialect: "sqlite",
-  storage: path.join(__dirname, "../../eventzen_auth.sqlite"),
-  logging: false,
-});
-
-// Import models
-const UserModel = require("./user.model");
-const User = UserModel(sequelize);
-
-// Define model associations
-// (add associations here if needed)
+const connectDB = async () => {
+  try {
+    const mongoURI = process.env.MONGODB_URI || 'mongodb://eventzen-mongodb:27017/eventzen';
+    await mongoose.connect(mongoURI);
+    console.log('MongoDB connected successfully');
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    process.exit(1);
+  }
+};
 
 module.exports = {
-  sequelize,
+  connectDB,
   User,
 };

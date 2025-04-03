@@ -295,6 +295,8 @@ const RegistrationForm = ({
             }}
             value={selectedEvent.id ? selectedEvent : null}
             onChange={(event, newValue) => {
+              console.log("Selected event:", newValue);
+              console.log("Event ID being set:", newValue ? newValue.id : "");
               handleAutocompleteChange("eventId", newValue ? newValue.id : "");
 
               // Reset ticket types when changing event

@@ -81,8 +81,20 @@ const RegistrationCard = ({
   if (!registration) return null;
 
   const formattedDate = formatDate(registration.registrationDate);
-  const eventName =
-    registration.event?.name || registration.event?.title || "Unknown Event";
+
+  // Get event name from multiple possible sources
+  let eventName = "Unknown Event";
+  if (registration.event?.name) {
+    eventName = registration.event.name;
+  } else if (registration.event?.title) {
+    eventName = registration.event.title;
+  } else if (registration.eventName) {
+    eventName = registration.eventName;
+  }
+
+  console.log("Registration in card:", registration);
+  console.log("Event name determined:", eventName);
+
   const attendeeName = `${registration.attendee?.firstName || ""} ${
     registration.attendee?.lastName || ""
   }`.trim();

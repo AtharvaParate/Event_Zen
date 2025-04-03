@@ -111,9 +111,10 @@ const RegistrationsPage = () => {
   const [checkinInProgress, setCheckinInProgress] = useState(false);
 
   useEffect(() => {
-    loadEvents();
-    loadAttendees();
-    loadRegistrations();
+    loadEvents().then(() => {
+      loadAttendees();
+      loadRegistrations();
+    });
   }, []);
 
   // Apply filtering when search term or filters change
@@ -131,8 +132,12 @@ const RegistrationsPage = () => {
 
   const loadEvents = async () => {
     try {
+      console.log("Loading events...");
       const data = await eventApi.fetchEvents();
-      setEvents(data.content || []);
+      console.log("Events data received:", data);
+      const eventsToSet = data.content || [];
+      console.log("Setting events:", eventsToSet);
+      setEvents(eventsToSet);
     } catch (err) {
       console.error("Error loading events:", err);
       showMessage("Failed to load events", "error");
@@ -178,12 +183,34 @@ const RegistrationsPage = () => {
         response = await registrationApi.fetchRegistrations(page);
       }
 
-      setRegistrations(
-        Array.isArray(response) ? response : response.content || []
+      // Get the registration items from the response, handling both array and paginated formats
+      const registrationItems = Array.isArray(response)
+        ? response
+        : response.content || [];
+
+      // Enhance each registration with event data
+      const enhancedRegistrations = registrationItems.map((registration) => {
+        // Find the matching event
+        const matchingEvent = events.find(
+          (event) => event.id === registration.eventId
+        );
+
+        // Return an enhanced registration with event information
+        return {
+          ...registration,
+          event: matchingEvent || null,
+          // Add event name directly to the registration object for easier access
+          eventName: matchingEvent ? matchingEvent.name : "Unknown Event",
+        };
+      });
+
+      console.log(
+        "Enhanced registrations with event data:",
+        enhancedRegistrations
       );
-      setFilteredRegistrations(
-        Array.isArray(response) ? response : response.content || []
-      );
+
+      setRegistrations(enhancedRegistrations);
+      setFilteredRegistrations(enhancedRegistrations);
       setTotalPages(response.totalPages || 1);
       setCurrentPage(page);
       setLoading(false);
@@ -311,10 +338,28 @@ const RegistrationsPage = () => {
         );
         console.log("Registration updated successfully:", updatedRegistration);
 
+        // Find the corresponding event object and attach it to the registration
+        const matchingEvent = events.find(
+          (event) => event.id === updatedRegistration.eventId
+        );
+        console.log("Matching event found for update:", matchingEvent);
+
+        // Create an enhanced updated registration with event data
+        const enhancedRegistration = {
+          ...updatedRegistration,
+          event: matchingEvent || null,
+          eventName: matchingEvent ? matchingEvent.name : "Unknown Event",
+        };
+
+        console.log(
+          "Enhanced updated registration with event data:",
+          enhancedRegistration
+        );
+
         // Update both data arrays
         const updateRegistrationInArray = (array) => {
           return array.map((reg) =>
-            reg.id === updatedRegistration.id ? updatedRegistration : reg
+            reg.id === enhancedRegistration.id ? enhancedRegistration : reg
           );
         };
 
@@ -327,27 +372,48 @@ const RegistrationsPage = () => {
       } else {
         // Create new registration
         console.log("Creating new registration");
+        console.log("Form data being sent:", formData);
+        console.log("Event ID in form data:", formData.eventId);
         const newRegistration = await registrationApi.createRegistration(
           formData
         );
         console.log("Registration created successfully:", newRegistration);
+        console.log(
+          "Event ID in created registration:",
+          newRegistration.eventId
+        );
+
+        // Find the corresponding event object and attach it to the registration
+        const matchingEvent = events.find(
+          (event) => event.id === newRegistration.eventId
+        );
+        console.log("Matching event found:", matchingEvent);
+
+        // Create an enhanced registration with event data
+        const enhancedRegistration = {
+          ...newRegistration,
+          event: matchingEvent || null,
+        };
+
+        console.log(
+          "Enhanced registration with event data:",
+          enhancedRegistration
+        );
 
         // Add to both data arrays
-        setRegistrations([newRegistration, ...registrations]);
+        setRegistrations([enhancedRegistration, ...registrations]);
 
         // If the registration passes current filters, add it to filtered registrations too
-        const passesFilters = shouldAddToFilteredList(newRegistration);
+        const passesFilters = shouldAddToFilteredList(enhancedRegistration);
         if (passesFilters) {
-          setFilteredRegistrations([newRegistration, ...filteredRegistrations]);
+          setFilteredRegistrations([
+            enhancedRegistration,
+            ...filteredRegistrations,
+          ]);
         }
 
         showMessage("Registration created successfully", "success");
       }
-
-      // Close dialogs and reset state
-      setShowAddDialog(false);
-      setShowEditDialog(false);
-      setCurrentRegistration(null);
     } catch (err) {
       console.error("Error saving registration:", err);
 
@@ -371,11 +437,28 @@ const RegistrationsPage = () => {
           updatedAt: new Date().toISOString(),
         };
 
+        // Find matching event for the mock registration
+        const matchingEvent = events.find(
+          (event) => event.id === mockData.eventId
+        );
+
+        // Add event information to the mock data
+        const enhancedMockData = {
+          ...mockData,
+          event: matchingEvent || null,
+          eventName: matchingEvent ? matchingEvent.name : "Unknown Event",
+        };
+
+        console.log(
+          "Enhanced mock registration with event data:",
+          enhancedMockData
+        );
+
         if (currentRegistration) {
           // Update existing registration in state with mock data
           const updateRegistrationInArray = (array) => {
             return array.map((reg) =>
-              reg.id === mockData.id ? mockData : reg
+              reg.id === enhancedMockData.id ? enhancedMockData : reg
             );
           };
 
@@ -390,19 +473,17 @@ const RegistrationsPage = () => {
           );
         } else {
           // Add new mock registration to state
-          setRegistrations([mockData, ...registrations]);
-          setFilteredRegistrations([mockData, ...filteredRegistrations]);
+          setRegistrations([enhancedMockData, ...registrations]);
+          setFilteredRegistrations([
+            enhancedMockData,
+            ...filteredRegistrations,
+          ]);
 
           showMessage(
             "Registration created successfully (mock mode)",
             "success"
           );
         }
-
-        // Close dialogs and reset state
-        setShowAddDialog(false);
-        setShowEditDialog(false);
-        setCurrentRegistration(null);
       } else {
         showMessage(
           `Failed to save registration: ${err.message || "Unknown error"}`,
@@ -410,14 +491,26 @@ const RegistrationsPage = () => {
         );
       }
     } finally {
+      // Always close dialogs and reset state regardless of success or error
+      setShowAddDialog(false);
+      setShowEditDialog(false);
+      setCurrentRegistration(null);
       setFormSubmitting(false);
     }
   };
 
   // Helper function to check if a registration should be added to the filtered list
   const shouldAddToFilteredList = (registration) => {
+    console.log(
+      "Checking if registration should be added to filtered list:",
+      registration
+    );
+
     // Apply event filter
     if (selectedEvent && registration.eventId !== selectedEvent) {
+      console.log(
+        `Event filter mismatch: ${registration.eventId} ≠ ${selectedEvent}`
+      );
       return false;
     }
 
@@ -426,6 +519,9 @@ const RegistrationsPage = () => {
       paymentStatusFilter !== "ALL" &&
       registration.paymentStatus !== paymentStatusFilter
     ) {
+      console.log(
+        `Payment status filter mismatch: ${registration.paymentStatus} ≠ ${paymentStatusFilter}`
+      );
       return false;
     }
 
@@ -434,6 +530,9 @@ const RegistrationsPage = () => {
       checkInStatusFilter !== "ALL" &&
       registration.checkInStatus !== checkInStatusFilter
     ) {
+      console.log(
+        `Check-in status filter mismatch: ${registration.checkInStatus} ≠ ${checkInStatusFilter}`
+      );
       return false;
     }
 
@@ -453,10 +552,12 @@ const RegistrationsPage = () => {
         !confirmationNumber.includes(lowerSearchTerm) &&
         !eventName.includes(lowerSearchTerm)
       ) {
+        console.log("Search term not found in registration details");
         return false;
       }
     }
 
+    console.log("Registration passes all filters");
     return true;
   };
 
@@ -535,18 +636,34 @@ const RegistrationsPage = () => {
       const updatedRegistration = await registrationApi.checkInRegistration(
         registration.id
       );
+      
+      // Find the matching event and preserve existing event data
+      const matchingEvent = events.find(
+        (event) => event.id === updatedRegistration.eventId
+      );
+      
+      // Create enhanced registration with event data
+      const enhancedRegistration = {
+        ...updatedRegistration,
+        // Preserve existing event if available, otherwise use the matching event
+        event: matchingEvent || registration.event || null,
+        eventName: matchingEvent ? matchingEvent.name : 
+                  (registration.eventName || registration.event?.name || "Unknown Event")
+      };
+      
+      console.log("Enhanced check-in registration with event data:", enhancedRegistration);
 
       // Update registration in state
       setRegistrations(
         registrations.map((reg) =>
-          reg.id === updatedRegistration.id ? updatedRegistration : reg
+          reg.id === enhancedRegistration.id ? enhancedRegistration : reg
         )
       );
 
       // Also update filtered registrations to reflect changes immediately
       setFilteredRegistrations(
         filteredRegistrations.map((reg) =>
-          reg.id === updatedRegistration.id ? updatedRegistration : reg
+          reg.id === enhancedRegistration.id ? enhancedRegistration : reg
         )
       );
 
@@ -565,7 +682,13 @@ const RegistrationsPage = () => {
   };
 
   const getEventName = (eventId) => {
+    console.log(`Looking for event with ID: ${eventId}`);
+    console.log(
+      "Available events:",
+      events.map((e) => ({ id: e.id, name: e.name }))
+    );
     const event = events.find((event) => event.id === eventId);
+    console.log("Found event:", event);
     return event ? event.name : "Unknown Event";
   };
 

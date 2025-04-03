@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import {
   Box,
@@ -9,12 +9,15 @@ import {
   CardContent,
   CardMedia,
   Stack,
+  CircularProgress,
+  Alert,
 } from "@mui/material";
 import EventIcon from "@mui/icons-material/Event";
 import StorefrontIcon from "@mui/icons-material/Storefront";
 import PeopleIcon from "@mui/icons-material/People";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import PageContainer from "../components/common/PageContainer";
+import { fetchEvents } from "../api/eventApi";
 
 const features = [
   {
@@ -43,6 +46,76 @@ const features = [
 ];
 
 const HomePage = () => {
+  const [featuredEvents, setFeaturedEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch featured events when component mounts
+  useEffect(() => {
+    const loadFeaturedEvents = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        // Fetch events from the API
+        const eventsData = await fetchEvents(0, 3);
+        
+        // Use the content array if it exists, otherwise use the response directly
+        const events = eventsData.content || eventsData || [];
+        
+        if (events.length > 0) {
+          // Use real events if available
+          setFeaturedEvents(events.slice(0, 3));
+        } else {
+          // No events returned
+          setError("No events available. Please check back later.");
+          setFeaturedEvents([]);
+        }
+      } catch (error) {
+        console.error('Error fetching featured events:', error);
+        setError("Failed to load events. Please try again later.");
+        setFeaturedEvents([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadFeaturedEvents();
+  }, []);
+
+  // Helper function to get a consistent image index from event ID
+  const getImageIndex = (id) => {
+    if (!id) return 1;
+
+    try {
+      // If the ID is a number or can be parsed as a hex value
+      if (typeof id === "number") {
+        return (id % 3) + 1;
+      }
+
+      // For string IDs
+      if (typeof id === "string") {
+        // Try to get some numerical value from the ID
+        // Method 1: Parse as integer if possible
+        if (!isNaN(parseInt(id))) {
+          return (parseInt(id) % 3) + 1;
+        }
+
+        // Method 2: Add up character codes
+        let sum = 0;
+        for (let i = 0; i < id.length; i++) {
+          sum += id.charCodeAt(i);
+        }
+        return (sum % 3) + 1;
+      }
+
+      // Default
+      return 1;
+    } catch (error) {
+      console.error("Error determining image index:", error);
+      return 1;
+    }
+  };
+
   return (
     <Box sx={{ width: "100%", overflow: "hidden" }}>
       {/* Hero Section */}
@@ -232,50 +305,70 @@ const HomePage = () => {
           Featured Events
         </Typography>
 
-        <Grid container spacing={4}>
-          {[1, 2, 3].map((item) => (
-            <Grid item xs={12} md={4} key={item}>
-              <Card
-                sx={{
-                  height: "100%",
-                  display: "flex",
-                  flexDirection: "column",
-                }}
-              >
-                <CardMedia
-                  component="img"
-                  height="200"
-                  image={`${process.env.PUBLIC_URL}/images/events/event-${item}.avif`}
-                  alt={`Event ${item}`}
-                  onError={(e) => {
-                    console.log(
-                      `Featured event-${item}.avif image load error, using default fallback`
-                    );
-                    e.target.onerror = null; // Prevent infinite loop
-                    e.target.src = `${process.env.PUBLIC_URL}/images/defaults/event-default.avif`;
+        {loading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", my: 4 }}>
+            <CircularProgress />
+          </Box>
+        ) : error ? (
+          <Alert severity="info" sx={{ my: 4 }}>
+            {error}
+          </Alert>
+        ) : featuredEvents.length === 0 ? (
+          <Alert severity="info" sx={{ my: 4 }}>
+            No events available at this time.
+          </Alert>
+        ) : (
+          <Grid container spacing={4}>
+            {featuredEvents.map((event) => (
+              <Grid item xs={12} md={4} key={event.id}>
+                <Card
+                  sx={{
+                    height: "100%",
+                    display: "flex",
+                    flexDirection: "column",
                   }}
-                />
-                <CardContent sx={{ flexGrow: 1 }}>
-                  <Typography gutterBottom variant="h5" component="h3">
-                    Sample Event {item}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" paragraph>
-                    This is a placeholder for a featured event. Real events will
-                    be displayed here.
-                  </Typography>
-                  <Button
-                    component={RouterLink}
-                    to={`/events/${item}`}
-                    size="small"
-                    color="primary"
-                  >
-                    View Details
-                  </Button>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
+                >
+                  <CardMedia
+                    component="img"
+                    height="200"
+                    image={`${
+                      process.env.PUBLIC_URL
+                    }/images/events/event-${getImageIndex(event.id)}.avif`}
+                    alt={event.title}
+                    onError={(e) => {
+                      console.log(
+                        `Featured event image load error for event ${event.id}, using default fallback`
+                      );
+                      e.target.onerror = null; // Prevent infinite loop
+                      e.target.src = `${process.env.PUBLIC_URL}/images/defaults/event-default.avif`;
+                    }}
+                  />
+                  <CardContent sx={{ flexGrow: 1 }}>
+                    <Typography gutterBottom variant="h5" component="h3">
+                      {event.title}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      paragraph
+                    >
+                      {event.description?.substring(0, 120)}
+                      {event.description?.length > 120 ? "..." : ""}
+                    </Typography>
+                    <Button
+                      component={RouterLink}
+                      to={`/events/${event.id}`}
+                      size="small"
+                      color="primary"
+                    >
+                      View Details
+                    </Button>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        )}
 
         <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
           <Button

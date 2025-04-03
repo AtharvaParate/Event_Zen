@@ -15,7 +15,7 @@ router.post("/register", async (req, res, next) => {
     const { email, password, firstName, lastName, role } = req.body;
 
     // Check if user already exists
-    const existingUser = await User.findOne({ where: { email } });
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: "User already exists" });
     }
@@ -31,7 +31,7 @@ router.post("/register", async (req, res, next) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
+      { id: user._id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );
@@ -40,7 +40,7 @@ router.post("/register", async (req, res, next) => {
       message: "User registered successfully",
       token,
       user: {
-        id: user.id,
+        id: user._id,
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
@@ -58,7 +58,7 @@ router.post("/login", async (req, res, next) => {
     const { email, password } = req.body;
 
     // Find user
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
@@ -76,7 +76,7 @@ router.post("/login", async (req, res, next) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
+      { id: user._id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );
@@ -85,7 +85,7 @@ router.post("/login", async (req, res, next) => {
       message: "Login successful",
       token,
       user: {
-        id: user.id,
+        id: user._id,
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
@@ -100,9 +100,7 @@ router.post("/login", async (req, res, next) => {
 // Get current user
 router.get("/me", auth, async (req, res) => {
   try {
-    const user = await User.findByPk(req.user.id, {
-      attributes: { exclude: ["password"] },
-    });
+    const user = await User.findById(req.user.id).select("-password");
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });

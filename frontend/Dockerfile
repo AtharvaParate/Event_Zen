@@ -1,5 +1,5 @@
 # Build stage
-FROM node:16-alpine as build
+FROM node:18-alpine as build
 
 WORKDIR /app
 
@@ -7,8 +7,13 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# Copy the rest of the app and build
+# Copy the rest of the app
 COPY . .
+
+# Use Docker environment file
+RUN cp .env.docker .env
+
+# Build the app
 RUN npm run build
 
 # Production stage

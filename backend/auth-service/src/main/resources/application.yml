@@ -1,0 +1,29 @@
+server:
+  port: 8084
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: auth-service
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://admin:admin123@mongodb:27017/eventzen?authSource=admin}
+  security:
+    jwt:
+      secret: ${JWT_SECRET:ZXZlbnR6ZW5zZWNyZXRrZXlmb3JqYXZhYXBwbGljYXRpb25zZWN1cml0eQ==}
+      expiration: ${JWT_EXPIRATION:86400000}
+
+logging:
+  level:
+    com.eventzen: DEBUG
+    org.springframework: INFO
+    org.springframework.security: DEBUG
+
+# CORS Configuration
+cors:
+  allowed-origins: http://localhost:3000,http://localhost:8080
+  allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  allowed-headers: "*"
+  allow-credentials: true
+  max-age: 3600

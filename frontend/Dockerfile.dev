@@ -1,0 +1,21 @@
+FROM node:18-slim
+
+WORKDIR /app
+
+COPY package*.json ./
+
+RUN npm install
+
+COPY . .
+
+EXPOSE 3000
+
+# Add environment variables
+ENV REACT_APP_AUTH_API_URL=http://localhost:8084/api
+ENV REACT_APP_EVENT_API_URL=http://localhost:8081/api
+ENV REACT_APP_BUDGET_API_URL=http://localhost:8083/api
+ENV NODE_ENV=development
+ENV HOST=0.0.0.0
+
+# Start the development server
+CMD ["npm", "start"] 

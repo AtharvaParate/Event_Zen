@@ -1,15 +1,12 @@
 // Import the axios instance from the config
-import axios from "./axiosConfig";
+import { attendeeApiInstance as axios } from "./axiosConfig";
 
 // Base URL for the registration service
 const REGISTRATION_API_URL = "/registrations";
 
 // Check if we should use mock data
 const shouldUseMockData = () => {
-  return (
-    process.env.NODE_ENV === "development" ||
-    process.env.REACT_APP_USE_MOCK_DATA === "true"
-  );
+  return true; // Enable mock data usage
 };
 
 // Mock data for development - using let instead of const to allow mutations
@@ -18,87 +15,121 @@ let MOCK_REGISTRATIONS = [
     id: "reg-1",
     attendeeId: "mock-1",
     eventId: "event-1",
-    confirmationNumber: "REG-ABC123",
-    registrationDate: "2023-04-15T10:00:00Z",
-    ticketType: "VIP",
-    ticketPrice: 99.99,
-    paymentStatus: "COMPLETED",
+    confirmationNumber: "CONF12345",
+    registrationDate: "2023-01-15T10:00:00Z",
+    ticketType: "STANDARD",
+    ticketPrice: 50.0,
+    paymentStatus: "PAID",
     paymentMethod: "CREDIT_CARD",
     checkInStatus: "CHECKED_IN",
-    checkInTime: "2023-04-15T13:30:00Z",
-    notes: "VIP package includes meet and greet",
-    attendee: {
-      id: "mock-1",
-      firstName: "John",
-      lastName: "Doe",
-      email: "john.doe@example.com",
-    },
-    event: {
-      id: "event-1",
-      name: "Annual Conference",
-      location: "Convention Center",
-      startDate: "2023-04-15T09:00:00Z",
-      endDate: "2023-04-17T18:00:00Z",
-    },
+    createdAt: "2023-01-15T10:00:00Z",
+    updatedAt: "2023-01-15T10:00:00Z",
   },
   {
     id: "reg-2",
     attendeeId: "mock-1",
     eventId: "event-2",
-    confirmationNumber: "REG-DEF456",
-    registrationDate: "2023-05-20T11:15:00Z",
-    ticketType: "STANDARD",
-    ticketPrice: 49.99,
-    paymentStatus: "PENDING",
+    confirmationNumber: "CONF23456",
+    registrationDate: "2023-02-20T14:30:00Z",
+    ticketType: "VIP",
+    ticketPrice: 100.0,
+    paymentStatus: "PAID",
     paymentMethod: "PAYPAL",
     checkInStatus: "NOT_CHECKED_IN",
-    notes: "",
-    attendee: {
-      id: "mock-1",
-      firstName: "John",
-      lastName: "Doe",
-      email: "john.doe@example.com",
-    },
-    event: {
-      id: "event-2",
-      name: "Tech Workshop",
-      location: "Innovation Hub",
-      startDate: "2023-05-25T10:00:00Z",
-      endDate: "2023-05-25T16:00:00Z",
-    },
+    createdAt: "2023-02-20T14:30:00Z",
+    updatedAt: "2023-02-20T14:30:00Z",
   },
   {
     id: "reg-3",
     attendeeId: "mock-2",
     eventId: "event-1",
-    confirmationNumber: "REG-GHI789",
-    registrationDate: "2023-04-10T09:30:00Z",
-    ticketType: "EARLY_BIRD",
-    ticketPrice: 79.99,
-    paymentStatus: "COMPLETED",
-    paymentMethod: "BANK_TRANSFER",
+    confirmationNumber: "CONF34567",
+    registrationDate: "2023-03-10T09:15:00Z",
+    ticketType: "STANDARD",
+    ticketPrice: 50.0,
+    paymentStatus: "PAID",
+    paymentMethod: "CREDIT_CARD",
     checkInStatus: "CHECKED_IN",
-    checkInTime: "2023-04-15T09:15:00Z",
-    notes: "Early arrival",
-    attendee: {
-      id: "mock-2",
-      firstName: "Jane",
-      lastName: "Smith",
-      email: "jane.smith@example.com",
-    },
-    event: {
-      id: "event-1",
-      name: "Annual Conference",
-      location: "Convention Center",
-      startDate: "2023-04-15T09:00:00Z",
-      endDate: "2023-04-17T18:00:00Z",
-    },
+    createdAt: "2023-03-10T09:15:00Z",
+    updatedAt: "2023-03-10T09:15:00Z",
+  },
+  {
+    id: "reg-4",
+    attendeeId: "mock-3",
+    eventId: "event-3",
+    confirmationNumber: "CONF45678",
+    registrationDate: "2023-04-05T16:45:00Z",
+    ticketType: "EARLY_BIRD",
+    ticketPrice: 35.0,
+    paymentStatus: "REFUNDED",
+    paymentMethod: "BANK_TRANSFER",
+    checkInStatus: "CANCELLED",
+    createdAt: "2023-04-05T16:45:00Z",
+    updatedAt: "2023-04-05T16:45:00Z",
   },
 ];
 
 // Create a deep copy of mock registrations to ensure we don't lose original data
-const getOriginalMockData = () =>
-  JSON.parse(JSON.stringify(MOCK_REGISTRATIONS));
+const getOriginalMockData = () => {
+  return [
+    {
+      id: "reg-1",
+      attendeeId: "mock-1",
+      eventId: "event-1",
+      confirmationNumber: "CONF12345",
+      registrationDate: "2023-01-15T10:00:00Z",
+      ticketType: "STANDARD",
+      ticketPrice: 50.0,
+      paymentStatus: "PAID",
+      paymentMethod: "CREDIT_CARD",
+      checkInStatus: "CHECKED_IN",
+      createdAt: "2023-01-15T10:00:00Z",
+      updatedAt: "2023-01-15T10:00:00Z",
+    },
+    {
+      id: "reg-2",
+      attendeeId: "mock-1",
+      eventId: "event-2",
+      confirmationNumber: "CONF23456",
+      registrationDate: "2023-02-20T14:30:00Z",
+      ticketType: "VIP",
+      ticketPrice: 100.0,
+      paymentStatus: "PAID",
+      paymentMethod: "PAYPAL",
+      checkInStatus: "NOT_CHECKED_IN",
+      createdAt: "2023-02-20T14:30:00Z",
+      updatedAt: "2023-02-20T14:30:00Z",
+    },
+    {
+      id: "reg-3",
+      attendeeId: "mock-2",
+      eventId: "event-1",
+      confirmationNumber: "CONF34567",
+      registrationDate: "2023-03-10T09:15:00Z",
+      ticketType: "STANDARD",
+      ticketPrice: 50.0,
+      paymentStatus: "PAID",
+      paymentMethod: "CREDIT_CARD",
+      checkInStatus: "CHECKED_IN",
+      createdAt: "2023-03-10T09:15:00Z",
+      updatedAt: "2023-03-10T09:15:00Z",
+    },
+    {
+      id: "reg-4",
+      attendeeId: "mock-3",
+      eventId: "event-3",
+      confirmationNumber: "CONF45678",
+      registrationDate: "2023-04-05T16:45:00Z",
+      ticketType: "EARLY_BIRD",
+      ticketPrice: 35.0,
+      paymentStatus: "REFUNDED",
+      paymentMethod: "BANK_TRANSFER",
+      checkInStatus: "CANCELLED",
+      createdAt: "2023-04-05T16:45:00Z",
+      updatedAt: "2023-04-05T16:45:00Z",
+    },
+  ];
+};
 
 // Fetch all registrations with pagination support
 export const fetchRegistrations = async (page = 0, size = 10) => {
@@ -338,12 +369,15 @@ export const createRegistration = async (registrationData) => {
 
     // For development, create a mock registration if the API fails
     if (shouldUseMockData()) {
-      console.warn("Creating mock registration for development");
+      console.log("Creating mock registration for development");
+      console.log("Original eventId:", registrationData.eventId);
 
       // Generate a new mock registration
       const mockRegistration = {
         id: `reg-${Math.random().toString(36).substring(2, 9)}`,
         ...registrationData,
+        // Ensure eventId is in the format expected by getEventName
+        eventId: registrationData.eventId,
         confirmationNumber: `REG-${Math.random()
           .toString(36)
           .substr(2, 6)
@@ -374,40 +408,38 @@ export const updateRegistration = async (id, registrationData) => {
       `${REGISTRATION_API_URL}/${id}`,
       registrationData
     );
-    console.log(`Registration ${id} updated successfully:`, response.data);
+    console.log("Registration updated successfully:", response.data);
     return response.data;
   } catch (error) {
-    console.error(`Error updating registration with ID ${id}:`, error);
+    console.error(`Error updating registration ${id}:`, error);
 
-    // For development, update mock registration if the API fails
+    // For development, return mock updated registration
     if (shouldUseMockData()) {
-      console.warn(`Updating mock registration for ID ${id}`);
+      console.log("Creating mock updated registration for development");
 
-      // Find and update the registration in the mock data array
-      const registrationIndex = MOCK_REGISTRATIONS.findIndex(
-        (reg) => reg.id === id
-      );
-      if (registrationIndex !== -1) {
-        const updatedRegistration = {
-          ...MOCK_REGISTRATIONS[registrationIndex],
-          ...registrationData,
-          id: id, // Ensure ID stays the same
-          updatedAt: new Date().toISOString(),
-        };
+      // Find the registration to update
+      const existingRegistration = MOCK_REGISTRATIONS.find((r) => r.id === id);
 
-        MOCK_REGISTRATIONS[registrationIndex] = updatedRegistration;
-        console.log("Mock registration updated:", updatedRegistration);
-        console.log("Updated mock registrations list:", MOCK_REGISTRATIONS);
-
-        return updatedRegistration;
-      } else {
-        console.warn(`No mock registration found with ID: ${id}`);
-        return {
-          id: id,
-          ...registrationData,
-          updatedAt: new Date().toISOString(),
-        };
+      if (!existingRegistration) {
+        throw new Error(`Registration with ID ${id} not found`);
       }
+
+      // Create updated registration with the new data
+      const updatedRegistration = {
+        ...existingRegistration,
+        ...registrationData,
+        // Preserve the eventId to ensure consistency
+        eventId: registrationData.eventId || existingRegistration.eventId,
+        updatedAt: new Date().toISOString(),
+      };
+
+      // Update the mock registration in the array
+      MOCK_REGISTRATIONS = MOCK_REGISTRATIONS.map((r) =>
+        r.id === id ? updatedRegistration : r
+      );
+
+      console.log("Mock registration updated:", updatedRegistration);
+      return updatedRegistration;
     }
 
     throw error;
@@ -523,49 +555,48 @@ export const updatePaymentStatus = async (registrationId, paymentStatus) => {
 // Check in a registration
 export const checkInRegistration = async (registrationId) => {
   try {
-    console.log(`Checking in registration with ID: ${registrationId}`);
-    const response = await axios.put(
+    console.log(`Checking in registration: ${registrationId}`);
+    const response = await axios.patch(
       `${REGISTRATION_API_URL}/${registrationId}/check-in`
     );
-    console.log(
-      `Registration ${registrationId} checked in successfully:`,
-      response.data
-    );
+    console.log(`Registration ${registrationId} checked in successfully`);
     return response.data;
   } catch (error) {
-    console.error(
-      `Error checking in registration with ID ${registrationId}:`,
-      error
-    );
+    console.error(`Error checking in registration ${registrationId}:`, error);
 
-    // For development, update mock check-in status if the API fails
+    // For development, create a mock checked-in registration
     if (shouldUseMockData()) {
-      console.warn(`Checking in mock registration for ID ${registrationId}`);
+      console.log(`Creating mock check-in for registration ${registrationId}`);
 
-      // Find and update the registration in the mock data array
-      const registrationIndex = MOCK_REGISTRATIONS.findIndex(
-        (reg) => reg.id === registrationId
+      // Find the registration in mock data
+      const registration = MOCK_REGISTRATIONS.find(
+        (r) => r.id === registrationId
       );
-      if (registrationIndex !== -1) {
-        const updatedRegistration = {
-          ...MOCK_REGISTRATIONS[registrationIndex],
-          checkInStatus: "CHECKED_IN",
-          checkInTime: new Date().toISOString(),
-        };
 
-        MOCK_REGISTRATIONS[registrationIndex] = updatedRegistration;
-        console.log("Mock registration checked in:", updatedRegistration);
-        console.log("Updated mock registrations list:", MOCK_REGISTRATIONS);
-
-        return updatedRegistration;
-      } else {
-        console.warn(`No mock registration found with ID: ${registrationId}`);
-        return {
-          id: registrationId,
-          checkInStatus: "CHECKED_IN",
-          checkInTime: new Date().toISOString(),
-        };
+      if (!registration) {
+        throw new Error(`Registration with ID ${registrationId} not found`);
       }
+
+      // Update check-in status
+      const updatedRegistration = {
+        ...registration,
+        checkInStatus: "CHECKED_IN",
+        updatedAt: new Date().toISOString(),
+        // Preserve event data to ensure it's available
+        eventId: registration.eventId,
+        // If the registration already has event data, preserve it
+        event: registration.event,
+      };
+
+      // Update the mock registration
+      MOCK_REGISTRATIONS = MOCK_REGISTRATIONS.map((r) =>
+        r.id === registrationId ? updatedRegistration : r
+      );
+
+      console.log(
+        `Mock registration ${registrationId} checked in successfully`
+      );
+      return updatedRegistration;
     }
 
     throw error;

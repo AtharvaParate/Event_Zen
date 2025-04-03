@@ -5,10 +5,7 @@ const VENDOR_API_URL = "/vendors";
 
 // Helper function to check if we should use mock data
 const shouldUseMockData = () => {
-  return (
-    process.env.NODE_ENV === "development" ||
-    process.env.REACT_APP_USE_MOCK_DATA === "true"
-  );
+  return false; // Disable mock data usage
 };
 
 // Mock vendors for development

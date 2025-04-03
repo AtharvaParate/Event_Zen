@@ -1,4 +1,4 @@
-import axios from "./axiosConfig";
+import { attendeeApiInstance } from "./axiosConfig";
 // eslint-disable-next-line no-unused-vars
 import { axiosInstance as axios1 } from "./axiosConfig";
 import { createRegistration } from "./registrationApi";
@@ -44,17 +44,14 @@ let MOCK_ATTENDEES = [
 
 // Helper function to check if we should use mock data
 const shouldUseMockData = () => {
-  return (
-    process.env.NODE_ENV === "development" ||
-    process.env.REACT_APP_USE_MOCK_DATA === "true"
-  );
+  return true; // Enable mock data usage
 };
 
 // Attendee API methods
 export const fetchAttendees = async (page = 0, size = 10) => {
   try {
     console.log(`Fetching attendees: page=${page}, size=${size}`);
-    const response = await axios.get(
+    const response = await attendeeApiInstance.get(
       `${ATTENDEE_API_URL}?page=${page}&size=${size}`
     );
     console.log("Attendees fetched successfully:", response.data);
@@ -89,7 +86,7 @@ export const fetchAttendees = async (page = 0, size = 10) => {
 export const fetchAttendeeById = async (id) => {
   try {
     console.log(`Fetching attendee with ID: ${id}`);
-    const response = await axios.get(`${ATTENDEE_API_URL}/${id}`);
+    const response = await attendeeApiInstance.get(`${ATTENDEE_API_URL}/${id}`);
     console.log(`Attendee ${id} fetched successfully:`, response.data);
     return response.data;
   } catch (error) {
@@ -129,7 +126,9 @@ export const fetchAttendeeById = async (id) => {
 export const fetchAttendeeByUserId = async (userId) => {
   try {
     console.log(`Fetching attendee for user ID: ${userId}`);
-    const response = await axios.get(`${ATTENDEE_API_URL}/user/${userId}`);
+    const response = await attendeeApiInstance.get(
+      `${ATTENDEE_API_URL}/user/${userId}`
+    );
     console.log(
       `Attendee for user ${userId} fetched successfully:`,
       response.data
@@ -164,7 +163,9 @@ export const fetchAttendeeByUserId = async (userId) => {
 export const fetchAttendeesByEventId = async (eventId) => {
   try {
     console.log(`Fetching attendees for event ID: ${eventId}`);
-    const response = await axios.get(`${ATTENDEE_API_URL}/event/${eventId}`);
+    const response = await attendeeApiInstance.get(
+      `${ATTENDEE_API_URL}/event/${eventId}`
+    );
     console.log(
       `Attendees for event ${eventId} fetched successfully:`,
       response.data
@@ -200,7 +201,10 @@ export const fetchAttendeesByEventId = async (eventId) => {
 export const createAttendee = async (attendeeData) => {
   try {
     console.log("Creating attendee with data:", attendeeData);
-    const response = await axios.post(ATTENDEE_API_URL, attendeeData);
+    const response = await attendeeApiInstance.post(
+      ATTENDEE_API_URL,
+      attendeeData
+    );
     console.log("Attendee created successfully:", response.data);
     return response.data;
   } catch (error) {
@@ -233,7 +237,7 @@ export const createAttendee = async (attendeeData) => {
 export const updateAttendee = async (id, attendeeData) => {
   try {
     console.log(`Updating attendee ${id} with data:`, attendeeData);
-    const response = await axios.put(
+    const response = await attendeeApiInstance.put(
       `${ATTENDEE_API_URL}/${id}`,
       attendeeData,
       {
@@ -285,7 +289,7 @@ export const updateAttendee = async (id, attendeeData) => {
 export const updateAttendeeStatus = async (id, status) => {
   try {
     console.log(`Updating status for attendee ${id} to ${status}`);
-    const response = await axios.patch(
+    const response = await attendeeApiInstance.patch(
       `${ATTENDEE_API_URL}/${id}/status?status=${status}`
     );
     console.log(
@@ -326,7 +330,7 @@ export const updateAttendeeStatus = async (id, status) => {
 export const deleteAttendee = async (id) => {
   try {
     console.log(`Deleting attendee with ID: ${id}`);
-    await axios.delete(`${ATTENDEE_API_URL}/${id}`);
+    await attendeeApiInstance.delete(`${ATTENDEE_API_URL}/${id}`);
     console.log(`Attendee ${id} deleted successfully`);
     return true;
   } catch (error) {
@@ -370,7 +374,7 @@ export const searchAttendees = async (searchTerm, filters = {}) => {
       }
     });
 
-    const response = await axios.get(
+    const response = await attendeeApiInstance.get(
       `${ATTENDEE_API_URL}/search?${queryParams}`
     );
     console.log("Search results:", response.data);
@@ -413,7 +417,7 @@ const mockSearchResults = (searchTerm, filters) => {
 export const fetchRegistrationsByAttendeeId = async (attendeeId) => {
   try {
     console.log(`Fetching registrations for attendee ID: ${attendeeId}`);
-    const response = await axios.get(
+    const response = await attendeeApiInstance.get(
       `${REGISTRATION_API_URL}/attendee/${attendeeId}`
     );
     console.log(
@@ -649,7 +653,7 @@ const getEventTitle = (eventId) => {
 export const fetchAttendeeByEmail = async (email) => {
   try {
     console.log(`Fetching attendee with email: ${email}`);
-    const response = await axios.get(
+    const response = await attendeeApiInstance.get(
       `${ATTENDEE_API_URL}/email/${encodeURIComponent(email)}`
     );
     console.log(

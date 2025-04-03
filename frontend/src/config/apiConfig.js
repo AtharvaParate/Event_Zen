@@ -7,26 +7,29 @@
 export const API_CONFIG = {
   // Auth service API
   AUTH_API_URL:
-    process.env.REACT_APP_AUTH_API_URL || "http://localhost:8081/api",
+    process.env.REACT_APP_AUTH_API_URL ||
+    "http://eventzen-auth-service:8084/api",
 
   // Event service API
   EVENT_API_URL:
-    process.env.REACT_APP_EVENT_API_URL || "http://localhost:8082/api",
+    process.env.REACT_APP_EVENT_API_URL ||
+    "http://eventzen-event-service:8081/api",
 
   // Budget service API
   BUDGET_API_URL:
-    process.env.REACT_APP_BUDGET_API_URL || "http://localhost:8083/api",
+    process.env.REACT_APP_BUDGET_API_URL ||
+    "http://eventzen-budget-service:8083/api",
 
   // Vendor service API
   VENDOR_API_URL:
-    process.env.REACT_APP_VENDOR_API_URL || "http://localhost:8084/api",
+    process.env.REACT_APP_VENDOR_API_URL || "http://localhost:8080/api",
 
   // Venue service API
   VENUE_API_URL:
-    process.env.REACT_APP_VENUE_API_URL || "http://localhost:8085/api",
+    process.env.REACT_APP_VENUE_API_URL || "http://localhost:8080/api",
 
   // Feature flags
-  USE_MOCK_DATA: false,
+  USE_MOCK_DATA: true,
 
   // Environment
   NODE_ENV: process.env.NODE_ENV || "development",
@@ -36,6 +39,10 @@ export const API_CONFIG = {
 
   // Default pagination
   DEFAULT_PAGE_SIZE: 10,
+
+  // Attendee service API
+  ATTENDEE_API_URL:
+    process.env.REACT_APP_ATTENDEE_API_URL || "http://localhost:8080/api",
 };
 
 // Authentication header builder

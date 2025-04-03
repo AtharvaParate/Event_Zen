@@ -13,6 +13,7 @@ const eventAxios = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  withCredentials: false, // Don't send cookies with cross-origin requests
 });
 
 // Add auth interceptor
@@ -58,7 +59,7 @@ eventAxios.interceptors.response.use(
 // Mock events data
 const mockEvents = [
   {
-    id: "evt-001",
+    id: "event-1",
     name: "Tech Conference 2024",
     title: "Tech Conference 2024",
     description: "Join us for the latest in technology innovation",
@@ -74,7 +75,7 @@ const mockEvents = [
     createdAt: "2024-03-01T10:30:00",
   },
   {
-    id: "evt-002",
+    id: "event-2",
     name: "Music Festival",
     title: "Music Festival",
     description: "Annual music festival featuring top artists",
@@ -90,7 +91,7 @@ const mockEvents = [
     createdAt: "2024-02-15T14:20:00",
   },
   {
-    id: "evt-003",
+    id: "event-3",
     name: "Wellness Retreat",
     title: "Wellness Retreat",
     description: "Weekend wellness and mindfulness retreat",
@@ -114,40 +115,40 @@ const mockTicketTypes = [
     name: "General Admission",
     price: 50,
     description: "Standard entry ticket",
-    eventId: "evt-001",
+    eventId: "event-1",
   },
   {
     id: "vip",
     name: "VIP",
     price: 100,
     description: "Premium access with special perks",
-    eventId: "evt-001",
+    eventId: "event-1",
   },
   {
     id: "early-bird",
     name: "Early Bird",
     price: 35,
     description: "Discounted rate for early registration",
-    eventId: "evt-001",
+    eventId: "event-1",
   },
   {
     id: "general",
     name: "General Admission",
     price: 25,
     description: "Standard entry ticket",
-    eventId: "evt-002",
+    eventId: "event-2",
   },
   {
     id: "vip",
     name: "VIP",
     price: 75,
     description: "Premium access with special perks",
-    eventId: "evt-002",
+    eventId: "event-2",
   },
 ];
 
 // Flag to determine if we use mock data or real API
-const USE_MOCK_DATA = false;
+const USE_MOCK_DATA = true;
 
 // Simple fetchEvents function for our new components
 export const fetchEvents = async (
@@ -159,6 +160,28 @@ export const fetchEvents = async (
     console.log(`===== Events API URL: ${API_CONFIG.EVENT_API_URL} =====`);
     console.log(`===== Events endpoint: ${EVENT_ENDPOINTS.EVENTS} =====`);
     console.log(`===== Using mock data: ${API_CONFIG.USE_MOCK_DATA} =====`);
+
+    // Return mock data if configured
+    if (API_CONFIG.USE_MOCK_DATA) {
+      console.log("===== Returning mock events data =====");
+      // Return paginated mock data
+      const start = page * size;
+      const end = start + size;
+      const paginatedEvents = mockEvents.slice(start, end);
+      
+      return {
+        content: paginatedEvents,
+        totalElements: mockEvents.length,
+        totalPages: Math.ceil(mockEvents.length / size),
+        size: size,
+        number: page,
+        first: page === 0,
+        last: (page + 1) * size >= mockEvents.length,
+      };
+    }
+
+    const fullUrl = `${API_CONFIG.EVENT_API_URL}${EVENT_ENDPOINTS.EVENTS}?page=${page}&size=${size}`;
+    console.log(`===== Full URL being called: ${fullUrl} =====`);
 
     const response = await eventAxios.get(
       `${EVENT_ENDPOINTS.EVENTS}?page=${page}&size=${size}`
@@ -188,6 +211,16 @@ export const fetchEvents = async (
   } catch (error) {
     console.error("===== Error fetching events =====", error);
     console.error(`===== Error details: ${error.message} =====`);
+
+    if (error.response) {
+      console.error("===== Error status:", error.response.status);
+      console.error("===== Error data:", error.response.data);
+    } else if (error.request) {
+      console.error(
+        "===== No response received. Request details:",
+        error.request
+      );
+    }
 
     // No fallback to mock data - throw the error to be handled by the caller
     throw error;

@@ -9,9 +9,10 @@ EventZen is a comprehensive event management platform designed to streamline the
 - Vendor management for events
 - Role-based authorization (Admin, Organizer, Attendee)
 - RESTful API with Spring Boot
-- MongoDB for data persistence
+- MongoDB and PostgreSQL for data persistence
 - Frontend with React.js
 - Docker containerization
+- Attendee registration and check-in
 
 ## Project Structure
 
@@ -21,9 +22,11 @@ The project follows a microservices architecture with the following components:
 EventZen/
 ├── backend/
 │   ├── event-service/      # Spring Boot service for event management
-│   ├── auth-service/       # Node.js service for authentication
+│   ├── auth-service/       # Authentication service
 │   ├── attendee-service/   # Service for attendee management
-│   └── budget-service/     # Service for budget management
+│   ├── budget-service/     # Service for budget management
+│   ├── vendor-service/     # Service for vendor management
+│   └── venue-service/      # Service for venue management
 ├── frontend/              # React frontend application
 ├── docker/                # Docker configuration files
 └── docs/                 # Project documentation
@@ -37,8 +40,11 @@ EventZen/
 - Node.js 18+
 - Docker and Docker Compose
 - MongoDB
+- PostgreSQL
 
-### Running with Docker
+### Quick Start (with Docker)
+
+The easiest way to run the complete EventZen application:
 
 1. Clone the repository:
 
@@ -47,7 +53,7 @@ git clone https://github.com/yourusername/EventZen.git
 cd EventZen
 ```
 
-2. Build and run using Docker Compose:
+2. Start all services with Docker Compose:
 
 ```bash
 docker-compose up --build
@@ -55,28 +61,16 @@ docker-compose up --build
 
 3. Access the application at:
    - Frontend: http://localhost:3000
-   - API Documentation: http://localhost:8080/api/swagger-ui.html
+   - Backend Services:
+     - API Gateway: http://localhost:8080
+     - Auth Service: http://localhost:8084
+     - Event Service: http://localhost:8081
+     - Budget Service: http://localhost:8083
+     - Attendee Service: http://localhost:8082
 
-### Development Setup
+### Starting Individual Components
 
-To set up the development environment:
-
-1. Event Service (Spring Boot):
-
-```bash
-cd backend/event-service
-./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
-```
-
-2. Auth Service (Node.js):
-
-```bash
-cd backend/auth-service
-npm install
-npm run dev
-```
-
-3. Frontend (React):
+#### Frontend
 
 ```bash
 cd frontend
@@ -84,65 +78,118 @@ npm install
 npm start
 ```
 
-## API Documentation
+The React frontend will be available at http://localhost:3000
 
-API documentation is available via Swagger UI at:
+#### Backend Services
 
-- http://localhost:8080/api/swagger-ui.html
+Each service can be started individually:
 
-## Authentication
+```bash
+cd backend/service-name
+./mvnw spring-boot:run
+```
 
-The application uses JWT-based authentication. See the [Authentication Documentation](docs/authentication/README.md) for details.
+Or use the provided scripts to start all services:
+
+```bash
+./start-services.sh
+```
+
+#### Databases
+
+The application uses PostgreSQL for relational data and MongoDB for document storage:
+
+```bash
+# Initialize and start all databases
+./setup-databases.sh
+```
+
+Or manually start databases with Docker:
+
+```bash
+docker-compose up -d postgres mongodb
+```
+
+## Configuration
+
+### Mock Data vs. Real Data
+
+The frontend can operate with mock data or connect to real backend services:
+
+- **Using Mock Data**: Set `USE_MOCK_DATA: true` in `frontend/src/config/apiConfig.js`
+- **Using Real Backend**: Set `USE_MOCK_DATA: false` and ensure backend services are running
+
+### Environment Variables
+
+Key environment variables for connecting services:
+
+```
+# Frontend
+REACT_APP_API_URL=http://localhost:8080/api
+
+# Backend Services
+SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/eventzen
+SPRING_DATA_MONGODB_URI=mongodb://mongodb:27017/eventzen
+JWT_SECRET=your-secret-key
+```
+
+## Recent Updates and Bug Fixes
+
+### 1. Registration and Event Display Fixes (April 2024)
+
+- Fixed issue where registrations were showing "Unknown Event" in the registrations page
+- Enhanced event data association when creating and updating registrations
+- Improved data consistency between mock events and registration data
+- Added proper error handling and CORS configurations for API instances
+- Fixed event information display in registration cards
+
+These changes ensure proper display of event names in registration cards and maintain data integrity across operations like create, update, and check-in.
+
+### 2. API Integration (April 2024)
+
+- Added proper Axios instance configuration for all services
+- Implemented consistent error handling across all API calls
+- Added authentication interceptors for secure API access
+- Configured cross-origin resource sharing (CORS) for all API endpoints
 
 ## Troubleshooting Common Issues
 
-### Material-UI Animation Issues
+### Connection Issues
 
-If you encounter errors related to Material-UI animations (e.g., `getBoundingClientRect()`), the application includes fixes for these issues:
+If you encounter connection issues between services:
 
-1. The global patches in `src/utils/muiFixes.js` address common animation issues
-2. For development, StrictMode is disabled to prevent animation errors
-3. All transitions are disabled in development mode for stability
+1. Ensure all required services are running - check with `docker-compose ps`
+2. Verify network configurations in `docker-compose.yml`
+3. Check CORS settings if browser shows cross-origin errors
+4. Make sure ports are not already in use (use `./free-ports.sh` to check)
 
-### Missing Index.html
+### Authentication Problems
 
-If you encounter a "Could not find a required file: index.html" error:
+For authentication issues:
 
-1. Make sure `public/index.html` exists
-2. Ensure you're starting the app from the project root with `npm start`
-3. Delete `node_modules` and reinstall with `npm install` if needed
+1. Check that the auth-service is running and accessible
+2. Verify JWT token validity and expiration
+3. Ensure proper authorization headers are being sent with requests
 
-### Image Loading Issues
+### Docker-related Issues
 
-If images fail to load:
+If facing problems with Docker:
 
-1. Make sure the public/images directory structure exists
-2. Check that fallback images are available in public/images/defaults
-3. Use the error handling provided by the CardMedia component
+1. Try stopping all containers and volumes: `docker-compose down -v`
+2. Rebuild containers: `docker-compose build --no-cache`
+3. Start services one by one to identify problematic containers
 
-## Deployment Checklist
+## Documentation
 
-Before deploying to production, ensure you complete the following:
+Additional documentation:
 
-1. Run `npm run build` to create an optimized production build
-2. Test the production build locally with a static server
-3. Configure environment variables for production
-4. Set up proper CORS configuration in backend services
-5. Enable React StrictMode in production for better error detection
-6. Set up proper error monitoring and logging
+- [Setup Guide](SETUP.md) - Detailed setup instructions
+- [Backend Setup](BACKEND_SETUP.md) - Specific backend configuration
+- [Contributing Guidelines](CONTRIBUTING.md) - How to contribute to the project
 
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Documentation
-
-Additional documentation can be found in the `docs` directory:
-
-- [Authentication](docs/authentication/README.md)
-- [Event API](docs/event-api/README.md)
-- [Vendor API](docs/vendor-api/README.md)
-- [Deployment Guide](docs/deployment/README.md)
 
 ## Contributing
 

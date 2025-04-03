@@ -1,239 +1,198 @@
-version: '3.8'
+version: "3.8"
 
 services:
-  # Databases
-  auth-db:
-    image: postgres:14
-    container_name: event-zen-auth-db
+  # MongoDB for Event and Attendee services
+  mongodb:
+    image: mongo:latest
+    container_name: eventzen-mongodb
+    ports:
+      - "27017:27017"
     environment:
-      POSTGRES_USER: eventzen
-      POSTGRES_PASSWORD: eventzen123
-      POSTGRES_DB: auth_service
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=admin123
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - eventzen-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mongosh",
+          "--username",
+          "admin",
+          "--password",
+          "admin123",
+          "--eval",
+          "db.version()",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL for Budget service
+  postgres:
+    image: postgres:15
+    container_name: eventzen-postgres
     ports:
       - "5432:5432"
-    volumes:
-      - auth-db-data:/var/lib/postgresql/data
-    networks:
-      - eventzen-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U eventzen -d auth_service"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  event-db:
-    image: postgres:14
-    container_name: event-zen-event-db
     environment:
-      POSTGRES_USER: eventzen
-      POSTGRES_PASSWORD: eventzen123
-      POSTGRES_DB: event_service
-    ports:
-      - "5433:5432"
+      - POSTGRES_USER=eventzen
+      - POSTGRES_PASSWORD=eventzen123
+      - POSTGRES_DB=budget_service
+      - POSTGRES_HOST_AUTH_METHOD=trust
     volumes:
-      - event-db-data:/var/lib/postgresql/data
-    networks:
-      - eventzen-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U eventzen -d event_service"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  budget-db:
-    image: postgres:14
-    container_name: event-zen-budget-db
-    environment:
-      POSTGRES_USER: eventzen
-      POSTGRES_PASSWORD: eventzen123
-      POSTGRES_DB: budget_service
-    ports:
-      - "5434:5432"
-    volumes:
-      - budget-db-data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/budget-db:/docker-entrypoint-initdb.d
     networks:
       - eventzen-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U eventzen -d budget_service"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 5
 
-  vendor-db:
-    image: postgres:14
-    container_name: event-zen-vendor-db
-    environment:
-      POSTGRES_USER: eventzen
-      POSTGRES_PASSWORD: eventzen123
-      POSTGRES_DB: vendor_service
+  # Gateway Service
+  gateway-service:
+    image: eventzen-gateway
+    container_name: eventzen-gateway
     ports:
-      - "5435:5432"
-    volumes:
-      - vendor-db-data:/var/lib/postgresql/data
+      - "8080:8080"
+    environment:
+      - SPRING_APPLICATION_NAME=gateway-service
+      - SPRING_CLOUD_GATEWAY_ROUTES[0].ID=auth-service
+      - SPRING_CLOUD_GATEWAY_ROUTES[0].URI=http://eventzen-auth-service:8084
+      - SPRING_CLOUD_GATEWAY_ROUTES[0].PREDICATES[0]=Path=/api/auth/**
+      - SPRING_CLOUD_GATEWAY_ROUTES[0].FILTERS[0]=StripPrefix=1
+      - SPRING_CLOUD_GATEWAY_ROUTES[1].ID=event-service
+      - SPRING_CLOUD_GATEWAY_ROUTES[1].URI=http://eventzen-event-service:8081
+      - SPRING_CLOUD_GATEWAY_ROUTES[1].PREDICATES[0]=Path=/api/events/**
+      - SPRING_CLOUD_GATEWAY_ROUTES[1].FILTERS[0]=StripPrefix=1
+      - SPRING_CLOUD_GATEWAY_ROUTES[2].ID=budget-service
+      - SPRING_CLOUD_GATEWAY_ROUTES[2].URI=http://eventzen-budget-service:8083
+      - SPRING_CLOUD_GATEWAY_ROUTES[2].PREDICATES[0]=Path=/api/budgets/**
+      - SPRING_CLOUD_GATEWAY_ROUTES[2].FILTERS[0]=StripPrefix=1
+      - SPRING_CLOUD_GATEWAY_ROUTES[3].ID=attendee-service
+      - SPRING_CLOUD_GATEWAY_ROUTES[3].URI=http://eventzen-attendee-service:8084
+      - SPRING_CLOUD_GATEWAY_ROUTES[3].PREDICATES[0]=Path=/api/attendees/**
+      - SPRING_CLOUD_GATEWAY_ROUTES[3].FILTERS[0]=StripPrefix=1
     networks:
       - eventzen-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U eventzen -d vendor_service"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
 
-  venue-db:
-    image: postgres:14
-    container_name: event-zen-venue-db
-    environment:
-      POSTGRES_USER: eventzen
-      POSTGRES_PASSWORD: eventzen123
-      POSTGRES_DB: venue_service
-    ports:
-      - "5436:5432"
-    volumes:
-      - venue-db-data:/var/lib/postgresql/data
-    networks:
-      - eventzen-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U eventzen -d venue_service"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Services
-  auth-service:
-    build: 
-      context: ./backend/auth-service
-      dockerfile: Dockerfile
-    container_name: event-zen-auth-service
+  # Event Service
+  event-service:
+    image: openjdk:17-jdk-slim
+    container_name: eventzen-event-service
     ports:
       - "8081:8081"
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://auth-db:5432/auth_service
-      - SPRING_DATASOURCE_USERNAME=eventzen
-      - SPRING_DATASOURCE_PASSWORD=eventzen123
-      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
-      - JWT_SECRET=event_zen_secret_key_very_secure_and_long_for_production
-      - JWT_EXPIRATION=86400000
-    depends_on:
-      auth-db:
-        condition: service_healthy
+      - SPRING_DATA_MONGODB_URI=mongodb://admin:admin123@mongodb:27017/eventzen?authSource=admin
+      - SPRING_APPLICATION_NAME=event-service
+      - SERVER_PORT=8081
+    volumes:
+      - ./backend/event-service/target:/app
+    command: java -jar /app/event-service-1.0.0.jar
     networks:
       - eventzen-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
 
-  event-service:
-    build:
-      context: ./backend/event-service
-      dockerfile: Dockerfile
-    container_name: event-zen-event-service
+  # Attendee Service
+  attendee-service:
+    image: openjdk:17-jdk-slim
+    container_name: eventzen-attendee-service
     ports:
-      - "8082:8082"
+      - "8082:8084"
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://event-db:5432/event_service
-      - SPRING_DATASOURCE_USERNAME=eventzen
-      - SPRING_DATASOURCE_PASSWORD=eventzen123
-      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
-      - AUTH_SERVICE_URL=http://auth-service:8081
-    depends_on:
-      event-db:
-        condition: service_healthy
-      auth-service:
-        condition: service_started
+      - SPRING_DATA_MONGODB_URI=mongodb://admin:admin123@mongodb:27017/eventzen?authSource=admin
+      - SPRING_APPLICATION_NAME=attendee-service
+      - SERVER_PORT=8084
+    volumes:
+      - ./backend/attendee-service/target:/app
+    command: java -jar /app/attendee-service-0.0.1-SNAPSHOT.jar
     networks:
       - eventzen-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
 
+  # Budget Service
   budget-service:
-    build:
-      context: ./backend/budget-service
-      dockerfile: Dockerfile
-    container_name: event-zen-budget-service
+    image: openjdk:17-jdk-slim
+    container_name: eventzen-budget-service
     ports:
       - "8083:8083"
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://budget-db:5432/budget_service
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/budget_service
       - SPRING_DATASOURCE_USERNAME=eventzen
       - SPRING_DATASOURCE_PASSWORD=eventzen123
-      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
-      - AUTH_SERVICE_URL=http://auth-service:8081
-      - EVENT_SERVICE_URL=http://event-service:8082
-    depends_on:
-      budget-db:
-        condition: service_healthy
-      auth-service:
-        condition: service_started
+      - SPRING_APPLICATION_NAME=budget-service
+    volumes:
+      - ./backend/budget-service/target:/app
+    command: java -jar /app/budget-service-0.0.1-SNAPSHOT.jar
     networks:
       - eventzen-network
+    depends_on:
+      postgres:
+        condition: service_healthy
 
-  vendor-service:
+  # Auth Service
+  auth-service:
     build:
-      context: ./backend/vendor-service
+      context: ./backend/auth-service
       dockerfile: Dockerfile
-    container_name: event-zen-vendor-service
+    container_name: eventzen-auth-service
     ports:
       - "8084:8084"
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://vendor-db:5432/vendor_service
-      - SPRING_DATASOURCE_USERNAME=eventzen
-      - SPRING_DATASOURCE_PASSWORD=eventzen123
-      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
-      - AUTH_SERVICE_URL=http://auth-service:8081
-    depends_on:
-      vendor-db:
-        condition: service_healthy
-      auth-service:
-        condition: service_started
+      - PORT=8084
+      - JWT_SECRET=eventzen_auth_service_secret_key
+      - JWT_EXPIRES_IN=7d
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://admin:admin123@mongodb:27017/eventzen?authSource=admin
     networks:
       - eventzen-network
-
-  venue-service:
-    build:
-      context: ./backend/venue-service
-      dockerfile: Dockerfile
-    container_name: event-zen-venue-service
-    ports:
-      - "8085:8085"
-    environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://venue-db:5432/venue_service
-      - SPRING_DATASOURCE_USERNAME=eventzen
-      - SPRING_DATASOURCE_PASSWORD=eventzen123
-      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
-      - AUTH_SERVICE_URL=http://auth-service:8081
     depends_on:
-      venue-db:
+      mongodb:
         condition: service_healthy
-      auth-service:
-        condition: service_started
-    networks:
-      - eventzen-network
 
-  # React Frontend
+  # Frontend Service
   frontend:
+    container_name: eventzen-frontend
     build:
       context: ./frontend
-      dockerfile: Dockerfile
-    container_name: event-zen-frontend
+      dockerfile: Dockerfile.dev
     ports:
-      - "3000:80"
+      - "3000:3000"
     environment:
-      - REACT_APP_AUTH_API_URL=http://localhost:8081/api
-      - REACT_APP_EVENT_API_URL=http://localhost:8082/api
+      - NODE_ENV=development
+      - REACT_APP_AUTH_API_URL=http://localhost:8084/api
+      - REACT_APP_EVENT_API_URL=http://localhost:8081/api
       - REACT_APP_BUDGET_API_URL=http://localhost:8083/api
-      - REACT_APP_VENDOR_API_URL=http://localhost:8084/api
-      - REACT_APP_VENUE_API_URL=http://localhost:8085/api
-      - REACT_APP_USE_MOCK_DATA=false
-    depends_on:
-      - auth-service
-      - event-service
-      - budget-service
-      - vendor-service
-      - venue-service
+      - REACT_APP_ATTENDEE_API_URL=http://localhost:8082/api
     networks:
       - eventzen-network
+    depends_on:
+      - gateway-service
+      - auth-service
+      - event-service
+      - attendee-service
+      - budget-service
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm start
 
 networks:
   eventzen-network:
     driver: bridge
 
 volumes:
-  auth-db-data:
-  event-db-data:
-  budget-db-data:
-  vendor-db-data:
-  venue-db-data: 
+  mongodb_data:
+  postgres_data:

@@ -1,18 +1,11 @@
-FROM node:18-alpine
+FROM node:20-slim
 
 WORKDIR /app
 
-# Copy package files
 COPY package*.json ./
+RUN rm -rf node_modules && npm install
 
-# Install dependencies
-RUN npm install
-
-# Copy source code
 COPY . .
 
-# Expose port
-EXPOSE 3001
-
-# Start the application
+EXPOSE 8084
 CMD ["npm", "start"] 

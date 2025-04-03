@@ -5,11 +5,6 @@ import {
   getAuthHeader,
 } from "../config/apiConfig";
 
-// Base URL for budget API
-const BUDGET_API_URL = "/api/budgets";
-const EXPENSE_API_URL = "/api/expenses";
-const INCOME_API_URL = "/api/incomes";
-
 // Create a separate axios instance for budget services with proper base URL
 const budgetAxios = axios.create({
   baseURL: API_CONFIG.BUDGET_API_URL,
@@ -17,6 +12,7 @@ const budgetAxios = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  withCredentials: false, // Don't send cookies with cross-origin requests
 });
 
 // Add auth interceptor
@@ -82,14 +78,19 @@ export const fetchBudgets = async (
       budgetsCache.size === size &&
       now - budgetsCache.timestamp < CACHE_TTL
     ) {
+      console.log("===== Using cached budget data =====");
       return budgetsCache.data;
     }
 
     // Only log when actually making a request, not on every call
-    console.log(`Fetching budgets: page=${page}, size=${size}`);
+    console.log(`===== Fetching budgets: page=${page}, size=${size} =====`);
+    console.log(`===== Budget API URL: ${API_CONFIG.BUDGET_API_URL} =====`);
+    console.log(`===== Budget endpoint: ${BUDGET_ENDPOINTS.BUDGETS} =====`);
 
     // Add cache buster to avoid browser caching
     const cacheBuster = `_cb=${now}`;
+    const fullUrl = `${API_CONFIG.BUDGET_API_URL}${BUDGET_ENDPOINTS.BUDGETS}?page=${page}&size=${size}&${cacheBuster}`;
+    console.log(`===== Full URL being called: ${fullUrl} =====`);
 
     // Use a more efficient request approach
     const response = await budgetAxios.get(
@@ -101,6 +102,13 @@ export const fetchBudgets = async (
           Pragma: "no-cache",
         },
       }
+    );
+
+    console.log(`===== Budget API response status: ${response.status} =====`);
+    console.log(
+      "===== Budget API response type:",
+      typeof response.data,
+      Array.isArray(response.data) ? "array" : "not array"
     );
 
     // Process response
@@ -130,10 +138,19 @@ export const fetchBudgets = async (
 
     return result;
   } catch (error) {
-    console.error("Error fetching budgets:", error.message);
+    console.error("===== Error fetching budgets =====", error);
+    console.error(`===== Error message: ${error.message} =====`);
+
     if (error.response) {
-      console.error(`Response status: ${error.response.status}`);
+      console.error(`===== Response status: ${error.response.status} =====`);
+      console.error(`===== Response data: `, error.response.data);
+    } else if (error.request) {
+      console.error(
+        "===== No response received. Request details:",
+        error.request
+      );
     }
+
     throw error;
   }
 };

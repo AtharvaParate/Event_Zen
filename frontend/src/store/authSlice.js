@@ -18,7 +18,7 @@ export const login = createAsyncThunk(
   "auth/login",
   async ({ email, password }, { dispatch, rejectWithValue }) => {
     try {
-      const response = await authApi.login(email, password);
+      const response = await authApi.login({ email, password });
       localStorage.setItem("token", response.token);
       return response;
     } catch (error) {

@@ -1,0 +1,55 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: gateway-service
+  cloud:
+    gateway:
+      routes:
+        - id: auth-service
+          uri: http://eventzen-auth-service:8084
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - StripPrefix=1
+        - id: event-service
+          uri: http://eventzen-event-service:8081
+          predicates:
+            - Path=/api/events/**
+          filters:
+            - StripPrefix=1
+        - id: budget-service
+          uri: http://eventzen-budget-service:8083
+          predicates:
+            - Path=/api/budgets/**
+          filters:
+            - StripPrefix=1
+        - id: attendee-service
+          uri: http://eventzen-attendee-service:8084
+          predicates:
+            - Path=/api/attendees/**
+          filters:
+            - StripPrefix=1
+      globalcors:
+        corsConfigurations:
+          "[/**]":
+            allowedOrigins:
+              - "http://localhost:3000"
+              - "http://localhost:8080"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.http.server.reactive: DEBUG
+    org.springframework.web.reactive: DEBUG
+    org.springframework.boot.autoconfigure.web: DEBUG

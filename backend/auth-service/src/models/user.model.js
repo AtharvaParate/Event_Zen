@@ -1,68 +1,57 @@
-const { DataTypes } = require("sequelize");
-const bcrypt = require("bcryptjs");
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
-module.exports = (sequelize) => {
-  const User = sequelize.define(
-    "User",
-    {
-      id: {
-        type: DataTypes.INTEGER,
-        primaryKey: true,
-        autoIncrement: true,
-      },
-      email: {
-        type: DataTypes.STRING,
-        allowNull: false,
-        unique: true,
-        validate: {
-          isEmail: true,
-        },
-      },
-      password: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
-      firstName: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
-      lastName: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
-      role: {
-        type: DataTypes.ENUM("admin", "organizer", "attendee"),
-        defaultValue: "attendee",
-      },
-      isActive: {
-        type: DataTypes.BOOLEAN,
-        defaultValue: true,
-      },
-      lastLogin: {
-        type: DataTypes.DATE,
-      },
-    },
-    {
-      timestamps: true,
-      hooks: {
-        beforeCreate: async (user) => {
-          if (user.password) {
-            user.password = await bcrypt.hash(user.password, 10);
-          }
-        },
-        beforeUpdate: async (user) => {
-          if (user.changed("password")) {
-            user.password = await bcrypt.hash(user.password, 10);
-          }
-        },
-      },
-    }
-  );
+const userSchema = new mongoose.Schema({
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+    lowercase: true,
+  },
+  password: {
+    type: String,
+    required: true,
+  },
+  firstName: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  lastName: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  role: {
+    type: String,
+    enum: ['admin', 'organizer', 'attendee'],
+    default: 'attendee',
+  },
+  isActive: {
+    type: Boolean,
+    default: true,
+  },
+  lastLogin: {
+    type: Date,
+  },
+}, {
+  timestamps: true,
+});
 
-  // Instance method to validate password
-  User.prototype.validatePassword = async function (password) {
-    return bcrypt.compare(password, this.password);
-  };
+// Hash password before saving
+userSchema.pre('save', async function(next) {
+  if (this.isModified('password')) {
+    this.password = await bcrypt.hash(this.password, 10);
+  }
+  next();
+});
 
-  return User;
+// Method to validate password
+userSchema.methods.validatePassword = async function(password) {
+  return bcrypt.compare(password, this.password);
 };
+
+const User = mongoose.model('User', userSchema);
+
+module.exports = User;

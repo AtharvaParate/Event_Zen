@@ -713,7 +713,9 @@ const BudgetsPage = () => {
           <BudgetForm
             budget={budgetToEdit}
             events={events}
-            onSubmit={handleSaveBudget}
+            onSave={handleSaveBudget}
+            onCancel={handleCloseDialog}
+            mode={budgetToEdit ? "edit" : "create"}
           />
         </DialogContent>
         <DialogActions>
