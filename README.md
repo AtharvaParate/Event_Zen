@@ -49,7 +49,7 @@ The easiest way to run the complete EventZen application:
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/EventZen.git
+git clone https://github.com/AtharvaParate/EventZen.git
 cd EventZen
 ```
 
